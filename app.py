@@ -529,7 +529,11 @@ def scroll_to_top_once(token):
         return
     st.session_state["_scrolled_for"] = token
     with st.container(key="scrolltop"):  # fixed script, no user or data text inside except a sanitised id
-        st.iframe(
+        embed = getattr(st, "iframe", None)
+        if embed is None:  # Streamlit < 1.56 has no st.iframe
+            import streamlit.components.v1 as components
+            embed = components.html
+        embed(
             f"<script>/* {safe(token)} */ const go = () => {{ const d = window.parent.document;"
             "const m = d.querySelector('[data-testid=\"stMain\"]'); if (m) m.scrollTop = 0;"
             "window.parent.scrollTo(0, 0); }; go(); [150, 400, 900].forEach(t => setTimeout(go, t));</script>",

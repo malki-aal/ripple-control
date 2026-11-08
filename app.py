@@ -576,23 +576,6 @@ def feed_item(t):
         st.button(f"Open {t['event_id']}", key=f"b{t['event_id']}", on_click=select, args=(t["event_id"],))
 
 
-def message_card(t):
-    """Front-page card, laid out like the Human review cards: the message itself plus an Open button."""
-    ev = events.get(t["event_id"])
-    status = (C.tone_pill(P, "sent to a person", "warn", True) if t["escalations"]
-              else C.tone_pill(P, "ignored", "ok") if not t["execution"] else "")
-    with st.container(key=f"card_msg_{safe(t['event_id'])}"):
-        st.html(
-            '<div class="rp-stack" style="gap:10px">'
-            f'<div class="rp-head"><div class="rp-h2">{name(t["event_id"])}</div>'
-            f'<div class="rp-row">{"".join(C.type_pill(P, x) for x in types_of(t))}{status}</div></div>'
-            f'<div class="rp-sub">{esc(t["received_at"][11:16])} · {source(t["source"])}</div>'
-            + (f'<div class="rp-quote">{esc(ev["text"])}</div>' if ev else "")
-            + f'<div class="rp-sub"><b>{n_writes(t)}</b> changes made</div></div>')
-        st.button(f"Open {L.plain(t['event_id']).lower()}", key=f"open_{safe(t['event_id'])}", on_click=select,
-                  args=(t["event_id"],))
-
-
 def page_feed():
     if sel is None:
         # front page: run summary across the full width, then the events as a section underneath
@@ -605,12 +588,12 @@ def page_feed():
                     f'<div class="rp-sub">{len(rows)} of {len(traces)} shown</div>')
             if not rows:
                 st.html('<div class="rp-note">No events match this filter.</div>')
-            per_row = 2
+            per_row = 4
             for i in range(0, len(rows), per_row):
-                cols = st.columns(per_row, gap="medium")
+                cols = st.columns(per_row)
                 for col, t in zip(cols, rows[i:i + per_row]):
                     with col:
-                        message_card(t)
+                        feed_item(t)
         return
     left, right = st.columns([1, 2.6], gap="large")
     with left:

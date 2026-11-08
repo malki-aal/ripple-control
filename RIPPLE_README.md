@@ -7,7 +7,9 @@ python tests/verify_log.py --log runs/run1/action_log.jsonl --traces runs/run1/e
 python run.py --dry-run --out runs/dry                                # no server, in-process Enterprise
 python run.py --extractor gemini --server http://127.0.0.1:8001 --out runs/run2   # Gemini (GEMINI_API_KEY in .env)
 python tests/benchmark_extractors.py --model gemini-3.1-flash-lite     # Gemini vs rules, no tool calls
-python tests/stress_test.py [--extractor gemini]                        # edge cases + failure injection, no server
+python run.py --extractor cascade --dry-run --out runs/cascade                # rules first, Gemini only when unsure
+python tests/compare_models.py                                           # sandbox rubric comparison of extractors
+python tests/stress_test.py [--extractor gemini|cascade]                # edge cases + failure injection, no server
 ```
 
 | Module | Role |

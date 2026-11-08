@@ -138,7 +138,7 @@ def failure_tests(w, kg, ex, base_event):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--extractor", default="rules", choices=["rules", "gemini", "auto"])
+    ap.add_argument("--extractor", default="rules", choices=["rules", "gemini", "auto", "cascade"])
     ap.add_argument("--model", default=None)
     a = ap.parse_args()
     w = World.load("data")

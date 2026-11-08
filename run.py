@@ -31,7 +31,7 @@ def main():
     ap.add_argument("--server", default="http://127.0.0.1:8000")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--out", default="runs/run1")
-    ap.add_argument("--extractor", default="auto", choices=["auto", "rules", "gemini", "ollama"])
+    ap.add_argument("--extractor", default="auto", choices=["auto", "cascade", "rules", "gemini", "ollama"])
     ap.add_argument("--model", default=None, help="LLM model id (default: best available Flash-Lite, or qwen2.5:3b for Ollama)")
     ap.add_argument("--only", nargs="*", help="event ids to run (debug)")
     a = ap.parse_args()

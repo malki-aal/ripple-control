@@ -9,7 +9,7 @@ import time
 from collections import defaultdict
 
 from .agents import (RULES, CustomerCareQuality, DealerNetwork, ScheduleLedger, SupplyChainPlanner)
-from .extract import RuleExtractor, validate_raw
+from .extract import CascadeExtractor, RuleExtractor, validate_raw
 from .resolve import Resolver
 from .world import idx_to_date, PLAN_END
 
@@ -87,20 +87,33 @@ class Coordinator:
 
     # ------------------------------------------------------------------ understanding
     def understand(self, event) -> tuple[list, dict]:
-        meta = {"extractor": getattr(self.ex, "model_id", "?"), "fallback": None}
         t0 = time.perf_counter()
+        ex = self.ex
+        if isinstance(ex, CascadeExtractor):
+            # rules first: if their reading is complete and unambiguous, no LLM call is made
+            raw = self.rules.extract(event["text"])
+            incs = [self.resolver.resolve(event, r, i) for i, r in enumerate(raw["incidents"], 1)]
+            doubts = ex.doubts(raw, incs)
+            if not doubts:
+                return incs, {"extractor": self.rules.model_id, "fallback": None,
+                              "extract_ms": round((time.perf_counter() - t0) * 1000, 1),
+                              "cascade": {"llm_called": False, "why": "rules reading complete and unambiguous"}}
+            ex = ex.llm
+        meta = {"extractor": getattr(ex, "model_id", "?"), "fallback": None}
+        if isinstance(self.ex, CascadeExtractor):
+            meta["cascade"] = {"llm_called": True, "why": doubts}
         try:
-            raw = self.ex.extract(event["text"])
+            raw = ex.extract(event["text"])
             validate_raw(raw)
         except Exception as e:                       # LLM down or invalid JSON -> deterministic fallback
             meta["fallback"] = f"{type(e).__name__}: {e}"
             meta["extractor"] = self.rules.model_id
             raw = self.rules.extract(event["text"])
         meta["extract_ms"] = round((time.perf_counter() - t0) * 1000, 1)
-        meta["extractor"] = getattr(self.ex, "model_id", meta["extractor"]) if not meta["fallback"] else meta["extractor"]
-        if getattr(self.ex, "last_usage", None) and not meta["fallback"]:
-            meta["tokens"] = {k: self.ex.last_usage.get(k) for k in ("promptTokenCount", "candidatesTokenCount", "totalTokenCount")}
-        if self.ex is not self.rules and not meta["fallback"]:
+        meta["extractor"] = getattr(ex, "model_id", meta["extractor"]) if not meta["fallback"] else meta["extractor"]
+        if getattr(ex, "last_usage", None) and not meta["fallback"]:
+            meta["tokens"] = {k: ex.last_usage.get(k) for k in ("promptTokenCount", "candidatesTokenCount", "totalTokenCount")}
+        if ex is not self.rules and not meta["fallback"]:
             # second opinion: deterministic extractor on the same text (recorded, used for review, never for writes)
             second = [r["type"] for r in self.rules.extract(event["text"])["incidents"]]
             first = [r["type"] for r in raw["incidents"]]

@@ -51,3 +51,21 @@ SELECT * FROM V_EVENT_OUTCOMES WHERE is_compound;                       -- E-01
 SELECT * FROM V_ACTION_POLICY WHERE event_id = 'E-01' AND tool = 'crm.assign_loaner';  -- why each loaner, which rule
 SELECT * FROM V_ESCALATIONS;   SELECT * FROM V_FAILED_CALLS;
 ```
+
+## MongoDB Atlas: precedent search ("similar past incidents")
+`mongodb/precedents.py` gives the human reviewer the closest earlier incidents and what was done about them.
+- Each incident gets a structured description built from trace facts: type, supplier/part/plant names, impact size,
+  decision and rule. No raw event text and no customer ids.
+- The description is embedded with Gemini `gemini-embedding-2` (768 dimensions) and stored in `ripple.incidents`
+  (`_id = run_id:incident_id`).
+- Queried with Atlas `$vectorSearch` (index `incident_vec`, cosine, filtered to the run, other events only). Same-type
+  precedents come first; another type is shown only at a score of 0.96 or above. `why_similar` is computed in code
+  from shared attributes.
+- Output: `<run>/similar_incidents.json` (contract in `ORLANDO_UI_BUILD_BRIEF.md` section 6), copied to `submission/`.
+
+```
+python integrations/mongodb/precedents.py --run runs/run2 --also submission    # Atlas (MONGODB_URI in .env)
+python integrations/mongodb/precedents.py --run runs/run2 --backend local      # same embeddings, local cosine
+```
+Run on Atlas M0 (2026-11-07): 16 incidents stored and the vector index built. Neighbours are identical to the
+local-cosine check for 14/16 incidents; the other 2 differ only in the order of tied noise events (score 1.0).

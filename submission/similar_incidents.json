@@ -1,0 +1,385 @@
+{
+  "schema_version": "ripple-similar/1.0",
+  "source": "mongodb-atlas-vector-search",
+  "run_id": "20261107T192611-0adc50",
+  "generated_at": "2026-11-07T22:49:55",
+  "top_k": 3,
+  "embedding_model": "gemini-embedding-2",
+  "store": "ripple.incidents",
+  "by_incident": {
+    "E-01#1": [
+      {
+        "incident_id": "E-08#1",
+        "event_id": "E-08",
+        "type": "plant_outage",
+        "score": 0.9874,
+        "decision": "act on 6 affected production orders",
+        "outcome": "6 rescheduled, 0 transferred, 25 dealers notified, 15 loaners",
+        "why_similar": "same incident type (plant outage)"
+      },
+      {
+        "incident_id": "E-04#1",
+        "event_id": "E-04",
+        "type": "plant_outage",
+        "score": 0.9849,
+        "decision": "act on 9 affected production orders",
+        "outcome": "9 rescheduled, 0 transferred, 32 dealers notified, 18 loaners",
+        "why_similar": "same incident type (plant outage)"
+      },
+      {
+        "incident_id": "E-11#1",
+        "event_id": "E-11",
+        "type": "plant_outage",
+        "score": 0.9818,
+        "decision": "act on 9 affected production orders",
+        "outcome": "6 rescheduled, 3 transferred, 36 dealers notified, 17 loaners",
+        "why_similar": "same incident type (plant outage)"
+      }
+    ],
+    "E-01#2": [
+      {
+        "incident_id": "E-09#1",
+        "event_id": "E-09",
+        "type": "supplier_delay",
+        "score": 0.9755,
+        "decision": "act on 6 affected production orders",
+        "outcome": "4 rescheduled, 2 transferred, 26 dealers notified, 10 loaners",
+        "why_similar": "supplier delay; shared models SUMMIT, VOYAGER"
+      },
+      {
+        "incident_id": "E-12#1",
+        "event_id": "E-12",
+        "type": "supplier_delay",
+        "score": 0.974,
+        "decision": "act on 3 affected production orders",
+        "outcome": "3 rescheduled, 0 transferred, 14 dealers notified, 10 loaners",
+        "why_similar": "supplier delay; same plant P_IN; shared models SUMMIT, VOYAGER"
+      },
+      {
+        "incident_id": "E-10#1",
+        "event_id": "E-10",
+        "type": "supplier_delay",
+        "score": 0.9701,
+        "decision": "act on 3 affected production orders",
+        "outcome": "3 rescheduled, 0 transferred, 18 dealers notified, 7 loaners",
+        "why_similar": "supplier delay; shared models NOVA"
+      }
+    ],
+    "E-02#1": [
+      {
+        "incident_id": "E-13#1",
+        "event_id": "E-13",
+        "type": "unconfirmed",
+        "score": 0.9075,
+        "decision": "escalate",
+        "outcome": "escalated to a human, no operational change",
+        "why_similar": "same incident type (unconfirmed report)"
+      }
+    ],
+    "E-03#1": [
+      {
+        "incident_id": "E-15#1",
+        "event_id": "E-15",
+        "type": "quality_hold",
+        "score": 0.9862,
+        "decision": "hold LOT-0191, stop-sale 40 VINs, contact 76 owners",
+        "outcome": "lot held, 25 dealer stop-sales, 76 owners contacted",
+        "why_similar": "quality hold; same part CHIP-IVI"
+      },
+      {
+        "incident_id": "E-14#1",
+        "event_id": "E-14",
+        "type": "quality_hold",
+        "score": 0.9644,
+        "decision": "hold LOT-0017, stop-sale 86 VINs, contact 94 owners",
+        "outcome": "lot held, 36 dealer stop-sales, 94 owners contacted",
+        "why_similar": "same incident type (quality hold)"
+      }
+    ],
+    "E-04#1": [
+      {
+        "incident_id": "E-08#1",
+        "event_id": "E-08",
+        "type": "plant_outage",
+        "score": 0.9895,
+        "decision": "act on 6 affected production orders",
+        "outcome": "6 rescheduled, 0 transferred, 25 dealers notified, 15 loaners",
+        "why_similar": "plant outage; same plant P_KY"
+      },
+      {
+        "incident_id": "E-11#1",
+        "event_id": "E-11",
+        "type": "plant_outage",
+        "score": 0.988,
+        "decision": "act on 9 affected production orders",
+        "outcome": "6 rescheduled, 3 transferred, 36 dealers notified, 17 loaners",
+        "why_similar": "same incident type (plant outage)"
+      },
+      {
+        "incident_id": "E-01#1",
+        "event_id": "E-01",
+        "type": "plant_outage",
+        "score": 0.9849,
+        "decision": "act on 6 affected production orders",
+        "outcome": "6 rescheduled, 0 transferred, 27 dealers notified, 6 loaners",
+        "why_similar": "same incident type (plant outage)"
+      }
+    ],
+    "E-05#1": [
+      {
+        "incident_id": "E-06#1",
+        "event_id": "E-06",
+        "type": "noise",
+        "score": 1.0,
+        "decision": "no action",
+        "outcome": "no action (no tool calls)",
+        "why_similar": "same incident type (noise)"
+      },
+      {
+        "incident_id": "E-07#1",
+        "event_id": "E-07",
+        "type": "noise",
+        "score": 1.0,
+        "decision": "no action",
+        "outcome": "no action (no tool calls)",
+        "why_similar": "same incident type (noise)"
+      }
+    ],
+    "E-06#1": [
+      {
+        "incident_id": "E-07#1",
+        "event_id": "E-07",
+        "type": "noise",
+        "score": 1.0,
+        "decision": "no action",
+        "outcome": "no action (no tool calls)",
+        "why_similar": "same incident type (noise)"
+      },
+      {
+        "incident_id": "E-05#1",
+        "event_id": "E-05",
+        "type": "noise",
+        "score": 1.0,
+        "decision": "no action",
+        "outcome": "no action (no tool calls)",
+        "why_similar": "same incident type (noise)"
+      }
+    ],
+    "E-07#1": [
+      {
+        "incident_id": "E-06#1",
+        "event_id": "E-06",
+        "type": "noise",
+        "score": 1.0,
+        "decision": "no action",
+        "outcome": "no action (no tool calls)",
+        "why_similar": "same incident type (noise)"
+      },
+      {
+        "incident_id": "E-05#1",
+        "event_id": "E-05",
+        "type": "noise",
+        "score": 1.0,
+        "decision": "no action",
+        "outcome": "no action (no tool calls)",
+        "why_similar": "same incident type (noise)"
+      }
+    ],
+    "E-08#1": [
+      {
+        "incident_id": "E-04#1",
+        "event_id": "E-04",
+        "type": "plant_outage",
+        "score": 0.9895,
+        "decision": "act on 9 affected production orders",
+        "outcome": "9 rescheduled, 0 transferred, 32 dealers notified, 18 loaners",
+        "why_similar": "plant outage; same plant P_KY"
+      },
+      {
+        "incident_id": "E-01#1",
+        "event_id": "E-01",
+        "type": "plant_outage",
+        "score": 0.9874,
+        "decision": "act on 6 affected production orders",
+        "outcome": "6 rescheduled, 0 transferred, 27 dealers notified, 6 loaners",
+        "why_similar": "same incident type (plant outage)"
+      },
+      {
+        "incident_id": "E-11#1",
+        "event_id": "E-11",
+        "type": "plant_outage",
+        "score": 0.9836,
+        "decision": "act on 9 affected production orders",
+        "outcome": "6 rescheduled, 3 transferred, 36 dealers notified, 17 loaners",
+        "why_similar": "same incident type (plant outage)"
+      }
+    ],
+    "E-09#1": [
+      {
+        "incident_id": "E-12#1",
+        "event_id": "E-12",
+        "type": "supplier_delay",
+        "score": 0.9903,
+        "decision": "act on 3 affected production orders",
+        "outcome": "3 rescheduled, 0 transferred, 14 dealers notified, 10 loaners",
+        "why_similar": "supplier delay; same part CAM-360; same supplier SUP-11"
+      },
+      {
+        "incident_id": "E-01#2",
+        "event_id": "E-01",
+        "type": "supplier_delay",
+        "score": 0.9755,
+        "decision": "act on 8 affected production orders",
+        "outcome": "8 rescheduled, 0 transferred, 29 dealers notified, 20 loaners",
+        "why_similar": "supplier delay; shared models SUMMIT, VOYAGER"
+      },
+      {
+        "incident_id": "E-10#1",
+        "event_id": "E-10",
+        "type": "supplier_delay",
+        "score": 0.9717,
+        "decision": "act on 3 affected production orders",
+        "outcome": "3 rescheduled, 0 transferred, 18 dealers notified, 7 loaners",
+        "why_similar": "supplier delay; same plant P_AL"
+      }
+    ],
+    "E-10#1": [
+      {
+        "incident_id": "E-09#1",
+        "event_id": "E-09",
+        "type": "supplier_delay",
+        "score": 0.9717,
+        "decision": "act on 6 affected production orders",
+        "outcome": "4 rescheduled, 2 transferred, 26 dealers notified, 10 loaners",
+        "why_similar": "supplier delay; same plant P_AL"
+      },
+      {
+        "incident_id": "E-01#2",
+        "event_id": "E-01",
+        "type": "supplier_delay",
+        "score": 0.9701,
+        "decision": "act on 8 affected production orders",
+        "outcome": "8 rescheduled, 0 transferred, 29 dealers notified, 20 loaners",
+        "why_similar": "supplier delay; shared models NOVA"
+      },
+      {
+        "incident_id": "E-12#1",
+        "event_id": "E-12",
+        "type": "supplier_delay",
+        "score": 0.9685,
+        "decision": "act on 3 affected production orders",
+        "outcome": "3 rescheduled, 0 transferred, 14 dealers notified, 10 loaners",
+        "why_similar": "same incident type (supplier delay)"
+      }
+    ],
+    "E-11#1": [
+      {
+        "incident_id": "E-04#1",
+        "event_id": "E-04",
+        "type": "plant_outage",
+        "score": 0.988,
+        "decision": "act on 9 affected production orders",
+        "outcome": "9 rescheduled, 0 transferred, 32 dealers notified, 18 loaners",
+        "why_similar": "same incident type (plant outage)"
+      },
+      {
+        "incident_id": "E-08#1",
+        "event_id": "E-08",
+        "type": "plant_outage",
+        "score": 0.9836,
+        "decision": "act on 6 affected production orders",
+        "outcome": "6 rescheduled, 0 transferred, 25 dealers notified, 15 loaners",
+        "why_similar": "same incident type (plant outage)"
+      },
+      {
+        "incident_id": "E-01#1",
+        "event_id": "E-01",
+        "type": "plant_outage",
+        "score": 0.9818,
+        "decision": "act on 6 affected production orders",
+        "outcome": "6 rescheduled, 0 transferred, 27 dealers notified, 6 loaners",
+        "why_similar": "same incident type (plant outage)"
+      }
+    ],
+    "E-12#1": [
+      {
+        "incident_id": "E-09#1",
+        "event_id": "E-09",
+        "type": "supplier_delay",
+        "score": 0.9903,
+        "decision": "act on 6 affected production orders",
+        "outcome": "4 rescheduled, 2 transferred, 26 dealers notified, 10 loaners",
+        "why_similar": "supplier delay; same part CAM-360; same supplier SUP-11"
+      },
+      {
+        "incident_id": "E-01#2",
+        "event_id": "E-01",
+        "type": "supplier_delay",
+        "score": 0.974,
+        "decision": "act on 8 affected production orders",
+        "outcome": "8 rescheduled, 0 transferred, 29 dealers notified, 20 loaners",
+        "why_similar": "supplier delay; same plant P_IN; shared models SUMMIT, VOYAGER"
+      },
+      {
+        "incident_id": "E-10#1",
+        "event_id": "E-10",
+        "type": "supplier_delay",
+        "score": 0.9685,
+        "decision": "act on 3 affected production orders",
+        "outcome": "3 rescheduled, 0 transferred, 18 dealers notified, 7 loaners",
+        "why_similar": "same incident type (supplier delay)"
+      }
+    ],
+    "E-13#1": [
+      {
+        "incident_id": "E-02#1",
+        "event_id": "E-02",
+        "type": "unconfirmed",
+        "score": 0.9075,
+        "decision": "escalate",
+        "outcome": "escalated to a human, no operational change",
+        "why_similar": "same incident type (unconfirmed report)"
+      }
+    ],
+    "E-14#1": [
+      {
+        "incident_id": "E-03#1",
+        "event_id": "E-03",
+        "type": "quality_hold",
+        "score": 0.9644,
+        "decision": "hold LOT-0130, stop-sale 110 VINs, contact 150 owners",
+        "outcome": "lot held, 37 dealer stop-sales, 150 owners contacted",
+        "why_similar": "same incident type (quality hold)"
+      },
+      {
+        "incident_id": "E-15#1",
+        "event_id": "E-15",
+        "type": "quality_hold",
+        "score": 0.9635,
+        "decision": "hold LOT-0191, stop-sale 40 VINs, contact 76 owners",
+        "outcome": "lot held, 25 dealer stop-sales, 76 owners contacted",
+        "why_similar": "same incident type (quality hold)"
+      }
+    ],
+    "E-15#1": [
+      {
+        "incident_id": "E-03#1",
+        "event_id": "E-03",
+        "type": "quality_hold",
+        "score": 0.9862,
+        "decision": "hold LOT-0130, stop-sale 110 VINs, contact 150 owners",
+        "outcome": "lot held, 37 dealer stop-sales, 150 owners contacted",
+        "why_similar": "quality hold; same part CHIP-IVI"
+      },
+      {
+        "incident_id": "E-14#1",
+        "event_id": "E-14",
+        "type": "quality_hold",
+        "score": 0.9635,
+        "decision": "hold LOT-0017, stop-sale 86 VINs, contact 94 owners",
+        "outcome": "lot held, 36 dealer stop-sales, 94 owners contacted",
+        "why_similar": "same incident type (quality hold)"
+      }
+    ]
+  }
+}

@@ -869,7 +869,7 @@ def review_pill(t, decided):
     ds = [decided[e["incident"]["incident_id"]] for e in t["incidents"] if e["incident"]["incident_id"] in decided]
     if not ds:
         return C.tone_pill(P, "waiting on a human", "warn", True)
-    return C.tone_pill(P, f"reviewed: {ds[-1]['decision']}", "ok")
+    return C.tone_pill(P, {"dismissed": "denied", "approved": "accepted", "rejected": "actions rejected"}[ds[-1]["decision"]], "ok")
 
 
 @st.cache_resource
@@ -886,32 +886,56 @@ def sandbox_extractor(data_dir, kind):
     return make_extractor(sandbox_engine(data_dir)[0], kind)
 
 
+DECISION_TEXT = {"dismissed": "Denied: no action needed", "approved": "Accepted and actions approved",
+                 "rejected": "Accepted, but the proposed actions were rejected"}
+
+
 def review_controls(it, reviewer, done):
-    """Dismiss, or confirm with the missing facts -> preview on a sandbox copy -> approve or reject."""
+    """Accept (it is real: add the missing facts, preview on a sandbox copy, approve) or Deny (no action)."""
     k = safe(it["incident_id"])
     with st.container(key=f"card_act_{k}"):
         if done:
-            st.html(C.callout("ok", f"<b>{esc(done['decision'].capitalize())}</b> by {esc(done['reviewer'])} at "
-                                    f"{esc(done['at'][11:16])}" + (f": {esc(done['note'])}" if done["note"] else "")
-                              + (f" · {done['outcome']['writes']} changes approved in the sandbox" if done.get("outcome")
-                                 and done["decision"] == "approved" else "")))
+            c1, c2 = st.columns([5, 1], vertical_alignment="center")
+            c1.html(C.callout("ok" if done["decision"] != "rejected" else "warn",
+                              f"<b>{esc(DECISION_TEXT[done['decision']])}</b> · {esc(done['reviewer'])} at "
+                              f"{esc(done['at'][11:16])}" + (f" · {esc(done['note'])}" if done["note"] else "")
+                              + (f" · {done['outcome']['writes']} changes (sandbox)" if done["decision"] == "approved"
+                                 and done.get("outcome") else "")))
+            if c2.button("Undo", key=f"u_{k}"):
+                review.undo(it["incident_id"])
+                st.session_state.pop(f"mode_{k}", None)
+                st.session_state.pop(f"tr_{k}", None)
+                st.rerun()
             return
         st.html(C.section("Your decision", "runs in a sandbox copy · never touches the official log"))
-        mode = st.radio("Decision", ["Confirm it with the missing facts", "Dismiss: no action needed"], key=f"m_{k}",
-                        horizontal=True, label_visibility="collapsed")
-        if mode.startswith("Dismiss"):
-            note = st.text_input("Why no action is needed", key=f"n_{k}")
-            if st.button("Record dismissal", key=f"d_{k}", disabled=not reviewer):
+        if not reviewer:
+            st.html(C.callout("warn", "Enter your name at the top of this page to accept or deny."))
+        mode = st.session_state.get(f"mode_{k}")
+        if mode is None:
+            note = st.text_input("Note (optional)", key=f"n_{k}")
+            a, b, _ = st.columns([1, 1, 3])
+            if a.button("Accept: it is real", key=f"acc_{k}", type="primary", disabled=not reviewer):
+                st.session_state[f"mode_{k}"] = "accept"
+                st.rerun()
+            if b.button("Deny: no action", key=f"den_{k}", disabled=not reviewer):
                 review.record(it, "dismissed", reviewer, note)
                 st.rerun()
             return
+        # accepted: the agents need the facts the rumor was missing
+        st.html('<div class="rp-note"><b>Accepted.</b> Add the facts the message was missing, then preview what the '
+                'agents would do. Nothing is changed until you approve.</div>')
         txt = st.text_area("Confirmed message: name the supplier or plant, the part, and the dates", key=f"t_{k}",
                            placeholder="e.g. Confirmed by <supplier>: the <part> due at <plant> on <date> will now arrive <date>.")
-        if st.button("Preview what the agents would do", key=f"p_{k}", disabled=not txt.strip()):
+        p1, p2, _ = st.columns([2, 1, 3])
+        if p1.button("Preview what the agents would do", key=f"p_{k}", disabled=not txt.strip()):
             with st.spinner("Running the agents on a sandbox copy"):
                 st.session_state[f"tr_{k}"] = review.preview(*sandbox_engine(DATA_DIR), sandbox_extractor(
                     DATA_DIR, st.session_state.get("rev_kind", "rules")), it, txt, data_dir=DATA_DIR)
                 st.session_state[f"txt_{k}"] = txt
+        if p2.button("Back", key=f"bk_{k}"):
+            st.session_state.pop(f"mode_{k}", None)
+            st.session_state.pop(f"tr_{k}", None)
+            st.rerun()
         tr = st.session_state.get(f"tr_{k}")
         if not tr:
             return
@@ -923,24 +947,21 @@ def review_controls(it, reviewer, done):
         if o["escalated_again"]:
             st.html(C.callout("warn", "<b>The agents still would not act.</b> " + pt(" ".join(tr["escalations"]))
                               + " Add the missing fact and preview again."))
-        else:
-            ws = review.writes(tr)
-            st.html(C.callout("ok", pt(tr["summary"]))
-                    + C.table([("#", "num"), ("Action", "nowrap"), ("Details", "wrap"), ("Rule", "nowrap")],
-                              [[esc(r["seq"]), f"<b>{esc(L.tool_label(r['tool']))}</b>", esc(L.describe(r["tool"], r["args"])),
-                                esc((r.get("rule") or "").split(":")[0])] for r in ws], max_height=320))
-            why_picker(tr, ws, key=f"why_rev_{k}", where="sandbox copy of the organizer system")
+            return
+        ws = review.writes(tr)
+        st.html(C.callout("ok", pt(tr["summary"]))
+                + C.table([("#", "num"), ("Action", "nowrap"), ("Details", "wrap"), ("Rule", "nowrap")],
+                          [[esc(r["seq"]), f"<b>{esc(L.tool_label(r['tool']))}</b>", esc(L.describe(r["tool"], r["args"])),
+                            esc((r.get("rule") or "").split(":")[0])] for r in ws], max_height=320))
+        why_picker(tr, ws, key=f"why_rev_{k}", where="sandbox copy of the organizer system")
         note = st.text_input("Note (optional)", key=f"rn_{k}")
         a, b, _ = st.columns([1, 1, 3])
-        if a.button("Approve these actions", key=f"a_{k}", type="primary",
-                    disabled=not reviewer or o["escalated_again"] or not o["writes"]):
+        if a.button(f"Approve {o['writes']} actions", key=f"a_{k}", type="primary", disabled=not reviewer or not o["writes"]):
             review.record(it, "approved", reviewer, note, st.session_state[f"txt_{k}"], tr)
             st.rerun()
-        if b.button("Reject", key=f"r_{k}", disabled=not reviewer):
+        if b.button("Reject actions", key=f"r_{k}", disabled=not reviewer):
             review.record(it, "rejected", reviewer, note, st.session_state[f"txt_{k}"], tr)
             st.rerun()
-        if not reviewer:
-            st.html('<div class="rp-note">Enter your name at the top of this page to record a decision.</div>')
 
 
 def decision_log(decisions):
@@ -951,7 +972,8 @@ def decision_log(decisions):
     st.html(C.table([("Time", "nowrap"), ("Reviewer", "nowrap"), ("Message", "nowrap"), ("Decision", "nowrap"),
                      ("Changes", "num"), ("Note", "wrap")],
                     [[esc(d["at"].replace("T", " ")), esc(d["reviewer"]), esc(L.plain(d["event_id"])),
-                      C.tone_pill(P, d["decision"], "ok" if d["decision"] != "rejected" else "warn"),
+                      C.tone_pill(P, {"dismissed": "Denied", "approved": "Approved", "rejected": "Rejected"}[d["decision"]],
+                                 "ok" if d["decision"] != "rejected" else "warn"),
                       esc((d.get("outcome") or {}).get("writes", 0) if d["decision"] == "approved" else 0), esc(d["note"])]
                      for d in reversed(decisions)]))
 

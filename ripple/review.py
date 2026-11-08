@@ -83,3 +83,14 @@ def record(item: dict, decision: str, reviewer: str, note: str = "", confirmed_t
     with open(path, "a", encoding="utf-8") as f:
         f.write(json.dumps(rec) + "\n")
     return rec
+
+
+def undo(incident_id: str, path: str = LOG) -> int:
+    """Remove the decisions for one incident (so it goes back to the queue). Returns how many were removed."""
+    keep = [d for d in load(path) if d["incident_id"] != incident_id]
+    removed = len(load(path)) - len(keep)
+    if removed:
+        with open(path, "w", encoding="utf-8") as f:
+            for d in keep:
+                f.write(json.dumps(d) + "\n")
+    return removed

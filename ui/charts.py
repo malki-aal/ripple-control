@@ -62,6 +62,45 @@ def actions_per_message(rows):
     return _style(alt.layer(bars, zero).properties(height=260))
 
 
+def token_forecast(rows):
+    """Fan chart: tokens saved vs number of future messages. Bands = 50% and 90% ranges, line = median."""
+    data = [{**r, "k50": r["p50"] / 1000, "k5": r["p5"] / 1000, "k95": r["p95"] / 1000,
+             "k25": r["p25"] / 1000, "k75": r["p75"] / 1000} for r in rows]
+    src = alt.Data(values=data)
+    x = alt.X("n:Q", title="Messages processed", axis=alt.Axis(format=",.0f", grid=False, tickCount=5))
+    band90 = alt.Chart(src).mark_area(color="#cde2fb", interpolate="monotone").encode(
+        x=x, y=alt.Y("k5:Q", title=None, axis=alt.Axis(format=",.0f", tickCount=5)), y2="k95:Q")
+    band50 = alt.Chart(src).mark_area(color="#86b6ef", interpolate="monotone").encode(x=x, y="k25:Q", y2="k75:Q")
+    line = alt.Chart(src).mark_line(color=CHART["acted"], strokeWidth=2, interpolate="monotone").encode(x=x, y="k50:Q")
+    hover = alt.selection_point(name="tf", on="pointerover", fields=["n"], nearest=True, empty=False, clear="pointerout")
+    pts = (alt.Chart(src).mark_circle(size=70, color=CHART["acted"], stroke="#FFFFFF", strokeWidth=2)
+           .encode(x=x, y="k50:Q", size=alt.condition(hover, alt.value(160), alt.value(60)),
+                   tooltip=[alt.Tooltip("n:Q", title="Messages", format=","),
+                            alt.Tooltip("p50:Q", title="Tokens saved (median)", format=",.0f"),
+                            alt.Tooltip("p5:Q", title="90% range from", format=",.0f"),
+                            alt.Tooltip("p95:Q", title="90% range to", format=",.0f"),
+                            alt.Tooltip("share:Q", title="Share of tokens saved", format=".0%")])
+           .add_params(hover))
+    return _style(alt.layer(band90, band50, line, pts).properties(height=260), legend=False)
+
+
+def time_forecast(hist, q):
+    """Distribution of staff hours saved: probability bars plus markers at the 5th, 50th and 95th percentiles."""
+    src = alt.Data(values=hist)
+    bars = alt.Chart(src).mark_bar(color=CHART["acted"], opacity=0.85, binSpacing=1).encode(
+        x=alt.X("h0:Q", title="Staff hours saved", bin="binned", axis=alt.Axis(grid=False, tickCount=6, format=",.0f")),
+        x2="h1:Q",
+        y=alt.Y("share:Q", title=None, axis=alt.Axis(format="%", tickCount=4)),
+        tooltip=[alt.Tooltip("h0:Q", title="From (hours)", format=",.0f"), alt.Tooltip("h1:Q", title="To (hours)", format=",.0f"),
+                 alt.Tooltip("share:Q", title="Probability", format=".1%")])
+    marks = alt.Data(values=[{"h": q["p5"], "t": f"5%: {q['p5']:,.0f} h"}, {"h": q["p50"], "t": f"median: {q['p50']:,.0f} h"},
+                             {"h": q["p95"], "t": f"95%: {q['p95']:,.0f} h"}])
+    rules = alt.Chart(marks).mark_rule(color=CHART["ink"], strokeDash=[4, 3], strokeWidth=1.5).encode(x="h:Q")
+    text = alt.Chart(marks).mark_text(align="left", dx=4, dy=-6, fontSize=12, fontWeight=600, color=CHART["ink"]).encode(
+        x="h:Q", y=alt.value(10), text="t:N")
+    return _style(alt.layer(bars, rules, text).properties(height=260), legend=False)
+
+
 def workload_area(points):
     """points: dicts with time (ISO), label, total (running actions). Smooth area with a hover crosshair."""
     data = [{**p, "t": _clock(p["received_at"]).isoformat()} for p in points]

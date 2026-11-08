@@ -17,6 +17,7 @@ import streamlit as st
 
 from ui import components as C
 from ui import charts as CH
+from ui import forecast as FC
 from ui import labels as L
 from ui.components import TYPE_LABEL, esc
 from ui.graph import dot_graph, incident_edges, legend, nid, ntype, ontology_dot
@@ -848,6 +849,49 @@ def page_summary():
                     pts.append({"received_at": t["received_at"], "label": L.plain(t["event_id"]),
                                 "added": len(t["execution"]), "total": total})
                 st.altair_chart(CH.workload_area(pts), theme=None, width="stretch")
+        forecasts()
+
+
+@st.cache_data
+def _token_rows(tok):
+    return FC.token_savings(list(tok), [100, 1000, 2500, 5000, 7500, 10000])
+
+
+@st.cache_data
+def _time_dist(acts, secs, n, lo, mode, hi):
+    return FC.time_savings(list(acts), list(secs), n, lo, mode, hi)
+
+
+def forecasts():
+    """Two forward-looking probability charts, clearly labelled as estimates."""
+    tok = tuple((t.get("understanding") or {}).get("tokens", {}).get("totalTokenCount") or 0 for t in traces)
+    acts = tuple(len(t["execution"]) for t in traces)
+    secs = tuple((t.get("duration_ms") or 0) / 1000 for t in traces)
+    st.html('<div style="height:6px"></div>' + title("Forecasts", C.tone_pill(P, "Estimate, not measured", "warn")))
+    c1, c2 = st.columns(2, gap="medium")
+    with c1, st.container(key="card_fc_tokens"):
+        rows = _token_rows(tok)
+        k = next(r for r in rows if r["n"] == 1000)
+        st.html(C.section("AI tokens saved by the rules-first mode (thousands)", "hover a point")
+                + f'<div class="rp-note">At 1,000 messages: <b>{k["p50"]:,.0f}</b> tokens saved (median), '
+                  f'90% likely between {k["p5"]:,.0f} and {k["p95"]:,.0f}, about {k["share"]:.0%} of what the AI would '
+                  f'otherwise use. Dark band: 50% likely, light band: 90% likely.</div>')
+        st.altair_chart(CH.token_forecast(rows), theme=None, width="stretch")
+        st.html('<div class="rp-note">Based on: tokens per message in this run (341 to 581), and how often the '
+                'rules-first mode still needed the AI in testing (5 of 30 messages, DESIGN_CARD.md).</div>')
+    with c2, st.container(key="card_fc_time"):
+        a, b = st.columns(2)
+        n = a.select_slider("Messages to project", [15, 50, 100, 250, 500, 1000], value=100, key="fc_n")
+        mode = b.select_slider("Minutes a person needs per action", [0.5, 1.0, 1.5, 2.0, 3.0, 5.0], value=1.5,
+                               key="fc_min")
+        hist, q, app_h = _time_dist(acts, secs, n, mode / 3, mode, mode * 2.5)
+        st.html(C.section("Staff time saved handling disruptions (probability)", "hover a bar")
+                + f'<div class="rp-note">For {n:,} messages: <b>{q["p50"]:,.0f} hours</b> of manual work saved '
+                  f'(median), 90% likely between {q["p5"]:,.0f} and {q["p95"]:,.0f} hours. Ripple itself needs about '
+                  f'{app_h * 60:,.0f} minutes.</div>')
+        st.altair_chart(CH.time_forecast(hist, q), theme=None, width="stretch")
+        st.html('<div class="rp-note">Based on: actions per message and Ripple\'s handling time in this run. The '
+                f'minutes per action is an assumption (range {mode / 3:.1f} to {mode * 2.5:.1f} min); change it above.</div>')
 
 
 {"Event feed": page_feed, "Human review": page_review, "Audit trail": page_audit,

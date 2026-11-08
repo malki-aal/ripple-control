@@ -82,20 +82,21 @@ html, body, .stApp, .stApp *:not([data-testid="stIconMaterial"]) {{ font-family:
 .rp-h3 {{ font-size: 17px; font-weight: 600; line-height: 1.3; color: var(--ink); margin: 0; }}
 .rp-sub {{ font-size: 14px; color: var(--muted); line-height: 1.4; }}
 .rp-body {{ font-size: 16px; color: var(--ink); line-height: 1.5; margin: 0; }}
-.rp-quote {{ font-size: 16px; line-height: 1.5; color: var(--ink); background: var(--raised); border-radius: 6px;
-  padding: 14px 16px; border-left: 3px solid var(--primary); white-space: pre-wrap; }}
+.rp-quote {{ font-size: 16px; line-height: 1.5; color: var(--ink); background: var(--raised); border-radius: 8px;
+  padding: 12px 14px; border: 1px solid var(--rule); white-space: pre-wrap; }}
 .rp-head {{ display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }}
 .rp-row {{ display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }}
 .rp-stack {{ display: flex; flex-direction: column; gap: 14px; }}
 .rp-note {{ font-size: 14px; color: var(--muted); line-height: 1.45; }}
 .rp-policy {{ display: flex; gap: 10px; align-items: baseline; font-size: 14px; color: var(--muted); line-height: 1.45; }}
 .rp-policy span:first-child {{ font-weight: 700; color: var(--primary); white-space: nowrap; }}
-.rp-callout {{ border-radius: 8px; padding: 12px 16px; font-size: 15px; line-height: 1.45; border: 1px solid; }}
-.rp-callout {{ background: var(--paper); border-width: 1px; border-left-width: 4px; }}
-.rp-callout.warn {{ border-color: var(--warn); color: var(--ink); }}
-.rp-callout.bad {{ border-color: var(--bad); color: var(--ink); }}
-.rp-callout.ok {{ border-color: var(--ok); color: var(--ink); }}
-.rp-callout.warn b {{ color: var(--warn); }} .rp-callout.bad b {{ color: var(--bad); }} .rp-callout.ok b {{ color: var(--ok); }}
+.rp-callout {{ position: relative; border-radius: 8px; padding: 11px 14px 11px 32px; font-size: 15px; line-height: 1.5;
+  background: var(--raised); border: 1px solid var(--rule); color: var(--ink); }}
+.rp-callout::before {{ content: ""; position: absolute; left: 14px; top: 18px; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--muted); }}
+.rp-callout.warn::before {{ background: var(--warn); }} .rp-callout.bad::before {{ background: var(--bad); }}
+.rp-callout.ok::before {{ background: var(--ok); }}
+.rp-callout b {{ color: var(--ink); font-weight: 600; }}
 
 /* ---------- plain-language event summary */
 .rp-sum {{ display: flex; flex-direction: column; gap: 6px; }}
@@ -104,9 +105,10 @@ html, body, .stApp, .stApp *:not([data-testid="stIconMaterial"]) {{ font-family:
 .rp-sum li, .rp-sum p {{ font-size: 16px !important; line-height: 1.5 !important; color: var(--ink); margin: 3px 0; }}
 
 /* ---------- pills */
-.rp-pill {{ display: inline-flex; align-items: center; justify-content: center; border-radius: 5px; padding: 3px 9px;
-  font-size: 13px; font-weight: 600; line-height: 1.35; white-space: nowrap; border: 1px solid transparent; }}
-.rp-pill.dashed {{ border-style: dashed; }}
+.rp-pill {{ display: inline-flex; align-items: center; gap: 7px; border-radius: 5px; padding: 3px 9px;
+  font-size: 13px; font-weight: 500; line-height: 1.35; white-space: nowrap; color: var(--ink);
+  background: var(--raised); border: 1px solid var(--rule); }}
+.rp-pill i {{ width: 8px; height: 8px; border-radius: 50%; flex: none; }}
 .rp-mock {{ display: inline-flex; align-items: center; border-radius: 8px; padding: 3px 10px; font-size: 13px;
   font-weight: 800; letter-spacing: .14em; color: #3B2600; border: 2px dashed #3B2600; background: #FFD36B; }}
 
@@ -117,11 +119,14 @@ html, body, .stApp, .stApp *:not([data-testid="stIconMaterial"]) {{ font-family:
   display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; text-align: left; gap: 6px; }}
 .rp-stat .l {{ order: -1; font-size: 13px; font-weight: 600; color: var(--muted); line-height: 1.3; }}
 .rp-stat .l::first-letter {{ text-transform: uppercase; }}
-.rp-stat .v {{ font-family: var(--mono) !important; font-size: 26px; font-weight: 600; line-height: 1.1;
-  font-variant-numeric: tabular-nums; color: var(--ink); }}
-.rp-stat.hero .v {{ font-size: 28px; }}
-.rp-stat.ok .v {{ color: var(--ok); }} .rp-stat.bad .v {{ color: var(--bad); }}
-.rp-stat.warn .v {{ color: var(--warn); }} .rp-stat.accent .v {{ color: var(--primary); }}
+.rp-stat .v {{ font-size: 24px; font-weight: 600; line-height: 1.15; font-variant-numeric: tabular-nums; color: var(--ink); }}
+.rp-stat.hero .v {{ font-size: 26px; }}
+.rp-stat .s {{ font-size: 13px; color: var(--muted); line-height: 1.3; }}
+.rp-stat.bad .v {{ color: var(--bad); }}
+
+/* front page: no panel wrapped around the summary strip or the events list */
+.st-key-card_overview, .st-key-card_events {{ background: transparent !important; border: 0 !important;
+  padding: 0 !important; box-shadow: none !important; }}
 
 /* ---------- facts grid */
 .rp-facts {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr)); gap: 10px; }}

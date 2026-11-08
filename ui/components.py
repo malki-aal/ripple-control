@@ -12,11 +12,10 @@ def esc(x):
 
 
 def pill(text, color, dashed=False, title=None):
-    """Bold solid pill: white text on a strong color. Dashed pills (needs a human) are outlined in that color."""
+    """One calm tag shape everywhere: light gray chip, dark text, and a small colored dot that carries the
+    meaning. (`dashed` is kept for callers but no longer changes the shape.)"""
     t = f' title="{esc(title)}"' if title else ""
-    style = (f"color:{color};background:#FFFFFF;border:2px dashed {color}" if dashed
-             else f"color:#FFFFFF;background:{color};border:2px solid {color}")
-    return f'<span class="rp-pill"{t} style="{style}">{esc(text)}</span>'
+    return f'<span class="rp-pill"{t}><i style="background:{color}"></i>{esc(text)}</span>'
 
 
 def tone_pill(P, text, tone, dashed=False):
@@ -37,10 +36,16 @@ def mock_badge(text="MOCK"):
 
 
 def stats(items, n=None, hero=False):
-    """items: (value, label, tone or None)."""
-    cells = "".join(f'<div class="rp-stat{" hero" if hero else ""}{" " + tone if tone else ""}">'
-                    f'<div class="v">{esc(v)}</div><div class="l">{esc(l)}</div></div>' for v, l, tone in items)
-    return f'<div class="rp-stats" style="--n:{n or len(items)}">{cells}</div>'
+    """items: (value, label, tone or None[, small note under the figure]). Only a real problem ('bad') is
+    colored; everything else stays in the normal text color so the strip reads as one calm row."""
+    cells = []
+    for it in items:
+        v, l, tone = it[0], it[1], it[2]
+        note = it[3] if len(it) > 3 else ""
+        cls = " bad" if tone == "bad" else ""
+        cells.append(f'<div class="rp-stat{" hero" if hero else ""}{cls}"><div class="v">{esc(v)}</div>'
+                     f'<div class="l">{esc(l)}</div>' + (f'<div class="s">{esc(note)}</div>' if note else "") + "</div>")
+    return f'<div class="rp-stats">{"".join(cells)}</div>'
 
 
 def facts(items):

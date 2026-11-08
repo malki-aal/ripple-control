@@ -302,11 +302,10 @@ def overview():
     with st.container(key="card_overview"):
         st.html(
             '<div class="rp-stack">' + title("Run summary")
-            + C.stats([(TOT["events"], "Messages received", None), (TOT["calls"], "Actions taken", None),
-                       (TOT["writes"], "Changes made", None),
-                       (TOT["failed"], "Failed actions", "ok" if not TOT["failed"] else "bad"),
-                       (TOT["escalated"], "Sent to a person", "warn" if TOT["escalated"] else None),
-                       (TOT["noise"], "Ignored as noise", None)], hero=True)
+            + C.stats([(TOT["events"], "Messages received", None, f"{TOT['noise']} ignored as noise"),
+                       (TOT["calls"], "Actions taken", "bad" if TOT["failed"] else None, f"{TOT['failed']} failed"),
+                       (TOT["writes"], "Changes made", None, "builds, dealers, customers"),
+                       (TOT["escalated"], "Sent to a person", None, "for a human to check")], hero=True)
             + "</div>")
 
 

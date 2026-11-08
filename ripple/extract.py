@@ -53,7 +53,9 @@ MONTHS = ("jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(
           "sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?")
 DATE_RE = re.compile(
     rf"(?P<iso>\b\d{{4}}-\d{{2}}-\d{{2}}\b)"
-    rf"|(?P<md>\b(?:(?:{WEEKDAYS})\s+)?(?:{MONTHS})\.?\s+\d{{1,2}}\b)"
+    rf"|(?P<md>\b(?:(?:{WEEKDAYS})\s+)?(?:{MONTHS})\.?\s+\d{{1,2}}(?:st|nd|rd|th)?\b)"
+    rf"|(?P<dm>\b\d{{1,2}}(?:st|nd|rd|th)?\s+(?:of\s+)?(?:{MONTHS})\b)"
+    rf"|(?P<num>\b\d{{1,2}}/\d{{1,2}}(?:/\d{{2,4}})?\b)"
     rf"|(?P<rel>\b(?:next|last|this|coming)\s+(?:{WEEKDAYS})\b)"
     rf"|(?P<bare>\b(?:{WEEKDAYS})\b)"
     rf"|(?P<word>\b(?:today|tomorrow|yesterday)\b)",

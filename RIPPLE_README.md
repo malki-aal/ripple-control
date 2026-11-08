@@ -10,6 +10,7 @@ python tests/benchmark_extractors.py --model gemini-3.1-flash-lite     # Gemini 
 python run.py --extractor cascade --dry-run --out runs/cascade                # rules first, Gemini only when unsure
 python tests/compare_models.py                                           # sandbox rubric comparison of extractors
 python tests/stress_test.py [--extractor gemini|cascade]                # edge cases + failure injection, no server
+python tests/brutal_test.py --extractor cascade                          # 20 harder messages, strict PASS/SAFE/FAIL
 ```
 
 | Module | Role |

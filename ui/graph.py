@@ -116,7 +116,8 @@ def ontology_dot(P, onto, counts):
     nodes_c, edges_c = counts.get("nodes", {}), counts.get("edges", {})
     types = sorted({v["src"] for v in onto["edge_types"].values()} | {v["dst"] for v in onto["edge_types"].values()})
     # top-to-bottom so the diagram stays narrow and is drawn at full size (big, readable text)
-    out = _header(P, rankdir="TB", fontsize=22, nodesep=0.35, ranksep=0.4)
+    out = _header(P, rankdir="TB", fontsize=22, nodesep=0.3, ranksep=0.4)
+    out[1] = out[1].replace("pad=0.2", "pad=0.05")
     for t in types:
         c = nodes_c.get(t)
         out.append(_node(P, t, t, _label(t, f"{c:,}" if isinstance(c, int) else "–"), w=2.8, h=0.8))

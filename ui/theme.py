@@ -210,7 +210,10 @@ html, body, .stApp, .stApp *:not([data-testid="stIconMaterial"]) {{ font-family:
 [data-testid="stGraphVizChart"] svg g.node text {{ font-size: 13px !important; font-weight: 700; }}
 .st-key-page_graph [data-testid="stGraphVizChart"] svg g.node text {{ font-size: 17px !important; }}
 /* knowledge graph: scale the whole diagram down so it fits on one screen without scrolling */
-.st-key-page_graph [data-testid="stGraphVizChart"] {{ display: flex; justify-content: center; }}
-.st-key-page_graph [data-testid="stGraphVizChart"] svg {{ width: auto !important; height: auto !important;
-  max-width: 100%; max-height: min(calc(100vh - 270px), 620px); }}
+.st-key-card_onto {{ width: fit-content !important; max-width: 100%; margin: 0 auto; padding: 14px 18px !important;
+  gap: 6px !important; align-items: center; }}
+.st-key-card_onto .rp-legend {{ justify-content: center; width: 0; min-width: 100%; }}
+.st-key-page_graph [data-testid="stGraphVizChart"] {{ display: flex; justify-content: center; width: auto !important; }}
+.st-key-page_graph [data-testid="stGraphVizChart"] svg {{ display: block; margin: 0 auto; width: auto !important;
+  height: auto !important; max-width: 100%; max-height: min(calc(100vh - 250px), 640px); }}
 </style>"""

@@ -23,7 +23,7 @@ import subprocess
 import sys
 import zipfile
 
-SRC = ["ripple", "tests", "integrations", "ui", "ui_fixtures", ".streamlit", "run.py", "app.py", "make_submission.py", "RIPPLE_README.md", "DESIGN_CARD.md",
+SRC = ["ripple", "tests", "integrations", "ui", "ui_fixtures", ".streamlit", "run.py", "app.py", "make_submission.py", "RIPPLE_README.md", "DESIGN_CARD.md", "DESIGN_CARD_DETAILED.md",
        "requirements.txt", "requirements-cloud.txt", ".env.example"]
 
 

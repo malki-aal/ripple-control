@@ -43,21 +43,22 @@ def _label(t, main, sub=None):
     return '"' + "\\n".join(clean) + '"'
 
 
-def _header(P):
+def _header(P, rankdir="LR", fontsize=16, nodesep=0.25, ranksep=0.55):
     font = FONT_STACK.split(",")[0].strip('"')
     return [
         "digraph G {",
-        f'graph [rankdir=LR, bgcolor="transparent", nodesep=0.25, ranksep=0.55, pad=0.2, fontname="{font}"];',
-        f'node [shape=box, style="rounded,filled", penwidth=1.8, margin="0.2,0.09", fontname="{font}", '
-        f'fontsize=15, fontcolor="{P["ink"]}"];',
-        f'edge [color="{P["edge"]}", penwidth=1.4, arrowsize=0.75];',
+        f'graph [rankdir={rankdir}, bgcolor="transparent", nodesep={nodesep}, ranksep={ranksep}, pad=0.2, '
+        f'fontname="{font}"];',
+        f'node [shape=box, style="rounded,filled", penwidth=2, margin="0.2,0.09", fontname="{font}", '
+        f'fontsize={fontsize}, fontcolor="{P["ink"]}"];',
+        f'edge [color="{P["edge"]}", penwidth=1.6, arrowsize=0.8];',
     ]
 
 
-def _node(P, key, t, label, tall=False):
+def _node(P, key, t, label, tall=False, w=2.4, h=0.75):
     """Every box has the same fixed size so labels and numbers sit centered in a tidy grid."""
     color = P["nodes"].get(t, P["muted"])
-    size = f'width=2.2, height={0.95 if tall else 0.7}, fixedsize=true'
+    size = f'width={w}, height={h + 0.25 if tall else h}, fixedsize=true'
     return (f'{_q(key)} [label={label}, color="{color}", fillcolor="{P["paper"]}", {size}, '
             f'tooltip={_q(NICE.get(t, t))}];')
 
@@ -106,17 +107,19 @@ def dot_graph(P, edges, focus_po=None, meanings=None, vehicle_status=None):
         nodes[g] = (t, _label(t, f"{len(members)} {word}", sub))
         tall = tall or bool(sub)
         lines.append(f"{_q(parent)} -> {_q(g)} [tooltip={_q('grouped ' + word)}];")
-    out = _header(P) + [_node(P, n, t, lab, tall) for n, (t, lab) in nodes.items()]
+    out = _header(P, nodesep=0.2, ranksep=0.4) + [_node(P, n, t, lab, tall, w=2.0, h=0.7)
+                                                    for n, (t, lab) in nodes.items()]
     return "\n".join(out + lines + ["}"])
 
 
 def ontology_dot(P, onto, counts):
     nodes_c, edges_c = counts.get("nodes", {}), counts.get("edges", {})
     types = sorted({v["src"] for v in onto["edge_types"].values()} | {v["dst"] for v in onto["edge_types"].values()})
-    out = _header(P)
+    # top-to-bottom so the diagram stays narrow and is drawn at full size (big, readable text)
+    out = _header(P, rankdir="TB", fontsize=22, nodesep=0.45, ranksep=0.6)
     for t in types:
         c = nodes_c.get(t)
-        out.append(_node(P, t, t, _label(t, f"{c:,}" if isinstance(c, int) else "–")))
+        out.append(_node(P, t, t, _label(t, f"{c:,}" if isinstance(c, int) else "–"), w=3.0, h=1.0))
     for k, v in onto["edge_types"].items():
         tip = f"{k.lower().replace('_', ' ')}: {v.get('meaning', '')} ({edges_c.get(k, '?')})"
         style = f', style=dashed, color="{P["nodes"]["Lot"]}", penwidth=1.8' if k == "LOT_USED_IN_ORDER" else ""

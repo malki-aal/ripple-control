@@ -86,6 +86,12 @@ html, body, .stApp, .stApp *:not([data-testid="stIconMaterial"]) {{ font-family:
 .rp-callout.bad {{ background: var(--bad_soft); border-color: var(--bad); color: var(--ink); }}
 .rp-callout.ok {{ background: var(--ok_soft); border-color: var(--ok); color: var(--ink); }}
 
+/* ---------- plain-language event summary */
+.rp-sum {{ display: flex; flex-direction: column; gap: 6px; }}
+.rp-sum .t {{ font-size: 17px; font-weight: 700; color: var(--ink); margin-top: 6px; }}
+.rp-sum ul {{ margin: 0; padding-left: 20px; }}
+.rp-sum li, .rp-sum p {{ font-size: 16px !important; line-height: 1.5 !important; color: var(--ink); margin: 3px 0; }}
+
 /* ---------- pills */
 .rp-pill {{ display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; padding: 3px 11px;
   font-size: 13px; font-weight: 600; line-height: 1.35; white-space: nowrap; border: 1px solid transparent; }}
@@ -199,4 +205,7 @@ html, body, .stApp, .stApp *:not([data-testid="stIconMaterial"]) {{ font-family:
 [data-testid="stCheckbox"] label:has(input[role="switch"]) > div:not([data-testid]) {{ background: var(--group) !important; }}
 [data-testid="stCheckbox"] label:has(input[role="switch"]:checked) > div:not([data-testid]) {{ background: var(--primary) !important; }}
 [data-testid="stGraphVizChart"] svg {{ max-width: 100%; height: auto; }}
+/* Streamlit shrinks graph text to ~9.6px; restore the sizes the graphs are laid out for (SVG user units) */
+[data-testid="stGraphVizChart"] svg g.node text {{ font-size: 13px !important; }}
+.st-key-page_graph [data-testid="stGraphVizChart"] svg g.node text {{ font-size: 17px !important; }}
 </style>"""

@@ -7,6 +7,7 @@ similar_incidents.json), so it shows exactly what the agents did. No tool calls 
 """
 import argparse
 import csv
+import datetime
 import json
 import os
 import re
@@ -451,6 +452,86 @@ def tab_execution(t):
         st.html(C.callout("warn", f"<b>Escalated:</b> {esc(r)}"))
 
 
+def nice_date(s):
+    try:
+        d = datetime.date.fromisoformat(str(s)[:10])
+        return f"{d:%b} {d.day}"
+    except ValueError:
+        return esc(s) if s else "?"
+
+
+def plural(n, word):
+    return f"{n} {word}{'' if n == 1 else 's'}"
+
+
+def event_story(t):
+    """Plain-language summary built from the trace: what happened, what we did, how it ended."""
+    happened = []
+    for e in t["incidents"]:
+        inc, imp = e["incident"], e.get("impact") or {}
+        ents, ev = inc.get("entities") or {}, imp.get("evidence") or {}
+        d = {k: (v or {}).get("value") for k, v in (inc.get("dates") or {}).items()}
+        n_pos = len(imp.get("affected_pos") or [])
+        nm = lambda i: esc(NAMES.get(i) or i or "?")  # noqa: E731
+        if inc["type"] == "supplier_delay":
+            happened.append(
+                f"<b>Supplier delay.</b> {nm(ents.get('supplier'))} can't deliver the {nm(ents.get('part'))} "
+                f"to {nm(ents.get('plant'))} on time: it now arrives {nice_date(d.get('new_eta'))} instead of "
+                f"{nice_date(d.get('original_eta'))}. {plural(n_pos, 'production order')} affected.")
+        elif inc["type"] == "plant_outage":
+            happened.append(
+                f"<b>Plant outage.</b> {nm(ents.get('plant'))} is down {nice_date(d.get('start'))} to "
+                f"{nice_date(d.get('end'))} and restarts {nice_date(ev.get('recovery_date'))}. "
+                f"{plural(n_pos, 'production order')} affected.")
+        elif inc["type"] == "quality_hold":
+            lot = ev.get("lot") or {}
+            happened.append(
+                f"<b>Quality problem.</b> Lot {esc(lot.get('lot_id') or imp.get('lot'))} of the "
+                f"{nm(lot.get('part_id'))} from {nm(lot.get('supplier_id'))} went into cars built at "
+                f"{nm(lot.get('plant_id'))} from {nice_date(lot.get('first_build_date'))} to "
+                f"{nice_date(lot.get('last_build_date'))}. {ev.get('vehicles_total', '?')} vehicles have it: "
+                f"{ev.get('in_stock', '?')} still unsold, {ev.get('sold', '?')} already with owners.")
+        elif inc["type"] == "noise":
+            happened.append(f"<b>Not an operational problem.</b> {esc(inc.get('extractor_reason'))}")
+        else:
+            happened.append(f"<b>Unconfirmed report.</b> {esc(inc.get('extractor_reason'))} "
+                            "No part, plant or dates could be confirmed.")
+
+    ok = Counter(r["tool"] for r in t["execution"] if r["status"] == "confirmed")
+    missed = sum(1 for x in t.get("loaners") or [] if not x.get("assigned"))
+    did = []
+    if ok["mes.reschedule"]:
+        did.append(f"Moved {plural(ok['mes.reschedule'], 'production order')} to the next open day at the same plant.")
+    if ok["mes.transfer"]:
+        did.append(f"Moved {plural(ok['mes.transfer'], 'production order')} to another plant that builds the model.")
+    if ok["quality.hold_lot"]:
+        did.append("Put the faulty lot on hold.")
+    if ok["dealer.stop_sale"]:
+        did.append(f"Stopped sale of the unsold cars at {plural(ok['dealer.stop_sale'], 'dealer')}.")
+    if ok["dealer.notify"]:
+        did.append(f"Told {plural(ok['dealer.notify'], 'dealer')} which of their customer orders are affected.")
+    if ok["crm.notify_customer"]:
+        who = "owner" if "quality_hold" in types_of(t) else "customer"
+        did.append(f"Contacted {plural(ok['crm.notify_customer'], who)}.")
+    if ok["crm.assign_loaner"]:
+        did.append(f"Gave loaner cars to {plural(ok['crm.assign_loaner'], 'priority customer')}"
+                   + (f"; {missed} more were eligible but their dealer had none left." if missed else "."))
+    if ok["escalate"]:
+        did.append("Sent it to a person to check. No operational changes were made.")
+    if not t["execution"]:
+        did.append("Nothing, on purpose: no tool calls were made.")
+
+    fails = n_failed(t)
+    if n_writes(t):
+        result = f"{plural(n_writes(t), 'change')} confirmed, {fails} failed."
+    else:
+        result = "No operational changes made." + (f" {fails} failed." if fails else "")
+    lis = lambda xs: "<ul>" + "".join(f"<li>{x}</li>" for x in xs) + "</ul>"  # noqa: E731
+    return (f'<div class="rp-sum"><div class="t">What happened</div>{lis(happened)}'
+            f'<div class="t">What we did</div>{lis(did)}'
+            f'<div class="t">Result</div><p>{result}</p></div>')
+
+
 def detail(t):
     ev = events.get(t["event_id"])
     st.button("← All events", key="back", on_click=clear_sel, type="tertiary")
@@ -462,7 +543,7 @@ def detail(t):
         + title(t["event_id"], pills)
         + f'<div class="rp-sub">{esc(t["received_at"].replace("T", " "))} · {esc(t["source"])}</div>'
         + (f'<div class="rp-quote">{esc(ev["text"])}</div>' if ev else "")
-        + f'<div class="rp-body">{esc(t.get("summary"))}</div></div>')
+        + event_story(t) + "</div>")
     st.html(C.stats([(len(t["incidents"]), "incidents", None), (n_writes(t), "confirmed writes", None),
                      (len(kinds(t)), "kinds of action", None),
                      (n_failed(t), "failed or blocked", "bad" if n_failed(t) else "ok")]))

@@ -16,11 +16,12 @@ import pandas as pd
 import streamlit as st
 
 from ui import components as C
+from ui import charts as CH
 from ui import labels as L
 from ui.components import TYPE_LABEL, esc
 from ui.graph import dot_graph, incident_edges, legend, nid, ntype, ontology_dot
 from ui.similar import load_similar, neighbours
-from ui.theme import P, css
+from ui.theme import CHART, P, css
 
 st.set_page_config(page_title="Ripple", page_icon=":material/waves:", layout="wide", initial_sidebar_state="collapsed")
 
@@ -279,20 +280,66 @@ def quality_block(e):
 
 
 # ============================================================================ event feed + detail
+def message_about(t):
+    """Short plain description of what a message was about, e.g. 'Plant outage, San Antonio plant'."""
+    out = []
+    for e in t["incidents"]:
+        inc, imp = e["incident"], e.get("impact") or {}
+        ents, ev = inc.get("entities") or {}, imp.get("evidence") or {}
+        kind = TYPE_LABEL.get(inc["type"], inc["type"])
+        if inc["type"] == "plant_outage":
+            out.append(f"{kind}, {L.plain(ents.get('plant'))}")
+        elif inc["type"] == "supplier_delay":
+            out.append(f"{kind}, {L.plain(ents.get('part'))}")
+        elif inc["type"] == "quality_hold":
+            out.append(f"{kind}, {L.plain((ev.get('lot') or {}).get('part_id') or ents.get('part'))}")
+        else:
+            out.append(kind)
+    return "; ".join(dict.fromkeys(out))
+
+
+def open_from_timeline():
+    """Click on a timeline dot: open that message (runs as a callback, before the page is drawn)."""
+    key = f"timeline_{st.session_state.get('tl_n', 0)}"
+    state = st.session_state.get(key) or {}
+    selection = (state.get("selection") if hasattr(state, "get") else getattr(state, "selection", None)) or {}
+    picked = selection.get("pick") or []
+    eid = picked[0].get("eid") if picked else None
+    if eid in by_id:
+        st.session_state.tl_n = st.session_state.get("tl_n", 0) + 1  # fresh chart next time, so the click doesn't stick
+        select(eid)
+
+
+def outcome_of(t):
+    return "Sent to a person" if t["escalations"] else "Ignored" if not t["execution"] else "Acted on"
+
+
 def overview():
-    with st.container(key="page_overview"):
-        inc_types = Counter(x for t in traces for x in types_of(t))
-        chips = "".join(f'<span class="rp-row" style="gap:6px">{C.type_pill(P, k)}<b>{v}</b></span>'
-                        for k, v in inc_types.most_common())
+    with st.container(key="card_overview"):
         st.html(
-            '<div class="rp-card rp-stack">' + title("Run summary")
+            '<div class="rp-stack">' + title("Run summary")
             + C.stats([(TOT["events"], "messages handled", None), (TOT["calls"], "actions taken", None),
                        (TOT["failed"], "failed actions", "ok" if not TOT["failed"] else "bad"),
                        (TOT["writes"], "changes made", None),
                        (TOT["escalated"], "escalated to a human", "warn" if TOT["escalated"] else "ok"),
                        (TOT["noise"], "junk messages ignored", None)], hero=True)
-            + f'<div class="rp-row" style="gap:18px">{chips}</div>'
             + "</div>")
+        cl, cr = st.columns([2.3, 1], gap="large")
+        with cl:
+            st.html(C.section("Actions taken for each message, by arrival time", "click a dot to open it"))
+            rows = [{"eid": t["event_id"], "num": int(t["event_id"].split("-")[1]), "received_at": t["received_at"],
+                     "source": t["source"], "about": message_about(t), "actions": len(t["execution"]),
+                     "changes": n_writes(t), "outcome": outcome_of(t)} for t in traces]
+            n = st.session_state.setdefault("tl_n", 0)
+            st.altair_chart(CH.morning_timeline(rows), on_select=open_from_timeline, selection_mode=["pick"],
+                            key=f"timeline_{n}", theme=None, width="stretch")
+        with cr:
+            st.html(C.section("What the actions were"))
+            kinds_n = Counter(r["kind"] for r in calls)
+            st.altair_chart(CH.action_donut([("Changes made", kinds_n.get("write", 0), CHART["change"]),
+                                             ("Look-ups", kinds_n.get("read", 0), CHART["lookup"]),
+                                             ("Sent to a person", kinds_n.get("escalation", 0), CHART["handoff"])]),
+                            theme=None, width="stretch")
 
 
 def feed_card(t, selected):
@@ -378,7 +425,15 @@ def tab_impact(t):
             mine = [p for p in moves_all if iid in p.get("incidents", [])]
             used.update(id(p) for p in mine)
             if mine:
-                st.html(f'<div class="rp-stack" style="gap:10px">{C.section("Where each build moved")}{moves_table(mine)}</div>')
+                st.html(C.section("Where each build moved", "hover a dot for the reason"))
+                st.altair_chart(CH.build_moves([{
+                    "build": L.plain(p["production_order_id"]), "from_day": p["from"][1], "to_day": p["to"][1],
+                    "from_txt": f"{L.plain(p['from'][0])}, {L.plain_date(p['from'][1])}",
+                    "to_txt": f"{L.plain(p['to'][0])}, {L.plain_date(p['to'][1])}",
+                    "how": "Another plant" if p["tool"] == "mes.transfer" else "Later day, same plant",
+                    "why": L.plain_text(p.get("rationale"))} for p in mine]), theme=None, width="stretch")
+                with st.expander("Same moves as a table"):
+                    st.html(moves_table(mine))
             similar_panel(iid)
     rest = [p for p in moves_all if id(p) not in used]
     if rest:
@@ -719,8 +774,17 @@ def page_summary():
                     f'<div class="rp-list">{"".join(rows)}</div></div>')
         with c2:
             tc = Counter(L.tool_label(r["tool"]) for r in calls if r["status"] == "confirmed")
-            st.html(f'<div class="rp-stack" style="gap:10px">{C.section("Actions taken")}'
-                    f'<div class="rp-card">{C.bars(tc.most_common())}</div></div>')
+            with st.container(key="card_kinds"):
+                st.html(C.section("Actions taken", "hover a bar"))
+                st.altair_chart(CH.actions_by_kind(tc.most_common()), theme=None, width="stretch")
+            with st.container(key="card_load"):
+                st.html(C.section("Actions so far, through the morning", "hover the line"))
+                total, pts = 0, []
+                for t in traces:
+                    total += len(t["execution"])
+                    pts.append({"received_at": t["received_at"], "label": L.plain(t["event_id"]),
+                                "added": len(t["execution"]), "total": total})
+                st.altair_chart(CH.workload_area(pts), theme=None, width="stretch")
 
 
 {"Event feed": page_feed, "Human review": page_review, "Audit trail": page_audit,

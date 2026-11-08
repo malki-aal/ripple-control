@@ -1,19 +1,26 @@
-"""Ripple look and feel: one fixed tan palette and the page CSS.
+"""Ripple look and feel: soft-UI palette and the page CSS.
 
-Flat, solid boxes (no transparency, no shadows), one geometric sans (13 to 40px), and a solid header band
-with the name and the top tabs.
+Cool blue-gray page, white rounded cards with soft shadows, a blue gradient for the active tab and buttons,
+and Montserrat throughout (13 to 40px).
 """
 
-FONT_URL = "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
-FONT_STACK = '"Plus Jakarta Sans", ui-sans-serif, system-ui, "Segoe UI", sans-serif'
+FONT_URL = "https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap"
+FONT_STACK = '"Montserrat", ui-sans-serif, system-ui, "Segoe UI", sans-serif'
 MONO_STACK = 'ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace'
 
+# chart colors (validated with the dataviz palette checker on a white surface): what we did with a message
+CHART = {"acted": "#2a78d6", "person": "#eb6834", "ignored": "#898781",
+         "change": "#2a78d6", "lookup": "#1baf7a", "handoff": "#eb6834",
+         "grid": "#e6eaf1", "axis": "#8a91a0", "ink": "#2b2f3a", "muted": "#5b6272"}
+
 P = {
-    # neutral base (no earth tones) with bold, solid accents; every bold color passes 4.5:1 with white text
-    "bg": "#F1F3F6", "paper": "#FFFFFF", "raised": "#EEF1F5", "group": "#D5DBE3", "rule": "#D5DBE3",
-    "ink": "#111827", "muted": "#4B5563",
-    "hero": "#111827", "hero_ink": "#FFFFFF", "hero_muted": "#D1D5DB", "hero_hover": "#1F2937",
-    "primary": "#1D4ED8",
+    # cool neutral base with solid blue accents; every pill color passes 4.5:1 with white text
+    "bg": "#E9EDF3", "paper": "#FFFFFF", "raised": "#F2F4F8", "group": "#D9DFE8", "rule": "#E3E8EF",
+    "ink": "#2B2F3A", "muted": "#5B6272",
+    "hero": "#FFFFFF", "hero_ink": "#2B2F3A", "hero_muted": "#5B6272", "hero_hover": "#F2F4F8",
+    "primary": "#2E5BEA",
+    "grad": "linear-gradient(135deg, #4C8DF6 0%, #2E4FE0 100%)",
+    "shadow": "0 10px 28px rgba(140, 155, 185, 0.22), 0 2px 6px rgba(140, 155, 185, 0.12)",
     "ok": "#15803D", "bad": "#B91C1C", "warn": "#B45309",
     "edge": "#6B7280",
     # incident types: one bold solid color each (white text on top)
@@ -51,8 +58,9 @@ html, body, .stApp, .stApp *:not([data-testid="stIconMaterial"]) {{ font-family:
 [data-testid="stVerticalBlock"] {{ gap: 14px; }}
 
 /* ---------- header band: name + top tabs */
-.st-key-hero {{ background: var(--hero); border-radius: 20px; padding: 14px 22px; margin-bottom: 6px; }}
-.rp-word {{ font-weight: 800; font-size: 26px; letter-spacing: .2em; line-height: 1; color: var(--hero_ink); }}
+.st-key-hero {{ background: var(--hero); border-radius: 24px; padding: 14px 22px; margin-bottom: 8px;
+  box-shadow: var(--shadow); }}
+.rp-word {{ font-weight: 800; font-size: 26px; letter-spacing: .2em; line-height: 1; color: var(--primary); }}
 .st-key-topnav [role="radiogroup"] {{ gap: 6px !important; justify-content: flex-end; flex-wrap: wrap; }}
 .st-key-topnav label[data-testid="stRadioOption"] {{ margin: 0 !important; padding: 9px 16px; border-radius: 12px;
   background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; }}
@@ -60,13 +68,14 @@ html, body, .stApp, .stApp *:not([data-testid="stIconMaterial"]) {{ font-family:
 .st-key-topnav label[data-testid="stRadioOption"] p {{ font-size: 16px !important; font-weight: 600;
   color: var(--hero_muted) !important; margin: 0; }}
 .st-key-topnav label[data-testid="stRadioOption"]:hover {{ background: var(--hero_hover); }}
-.st-key-topnav label[data-testid="stRadioOption"]:has(input:checked) {{ background: var(--paper); }}
-.st-key-topnav label[data-testid="stRadioOption"]:has(input:checked) p {{ color: var(--hero) !important; }}
+.st-key-topnav label[data-testid="stRadioOption"]:has(input:checked) {{ background: var(--grad);
+  box-shadow: 0 6px 16px rgba(46, 79, 224, 0.35); }}
+.st-key-topnav label[data-testid="stRadioOption"]:has(input:checked) p {{ color: #FFFFFF !important; }}
 .st-key-topnav [data-testid="stWidgetLabel"] {{ display: none; }}
 
 /* ---------- cards */
-[class*="st-key-card_"], .rp-card {{ background: var(--paper); border: 1px solid var(--rule); border-radius: 18px;
-  padding: 20px; box-sizing: border-box; }}
+[class*="st-key-card_"], .rp-card {{ background: var(--paper); border: 1px solid #EEF1F6; border-radius: 24px;
+  padding: 22px; box-sizing: border-box; box-shadow: var(--shadow); }}
 .rp-h1 {{ font-size: 26px; font-weight: 700; line-height: 1.2; color: var(--ink); margin: 0; }}
 .rp-h2 {{ font-size: 18px; font-weight: 600; line-height: 1.3; color: var(--ink); margin: 0; }}
 .rp-h3 {{ font-size: 17px; font-weight: 600; line-height: 1.3; color: var(--ink); margin: 0; }}
@@ -102,7 +111,7 @@ html, body, .stApp, .stApp *:not([data-testid="stIconMaterial"]) {{ font-family:
 
 /* ---------- stats */
 .rp-stats {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr)); gap: 12px; }}
-.rp-stat {{ background: var(--paper); border: 1px solid var(--rule); border-radius: 16px; padding: 16px 12px;
+.rp-stat {{ background: var(--paper); border: 1px solid #EEF1F6; border-radius: 20px; padding: 16px 12px; box-shadow: var(--shadow);
   min-width: 0; min-height: 100px; box-sizing: border-box;
   display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px; }}
 .rp-stat .v {{ font-size: 32px; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; color: var(--ink); }}
@@ -119,7 +128,7 @@ html, body, .stApp, .stApp *:not([data-testid="stIconMaterial"]) {{ font-family:
 .rp-fact .v {{ font-size: 16px; font-weight: 600; color: var(--ink); overflow-wrap: break-word; line-height: 1.35; }}
 
 /* ---------- tables */
-.rp-tablewrap {{ border: 1px solid var(--rule); border-radius: 14px; overflow: auto; background: var(--paper); }}
+.rp-tablewrap {{ border: 1px solid #EEF1F6; border-radius: 18px; overflow: auto; background: var(--paper); }}
 .rp-table {{ width: 100%; border-collapse: separate; border-spacing: 0; font-size: 14px; color: var(--ink); }}
 .rp-table th {{ position: sticky; top: 0; z-index: 1; background: var(--raised); color: var(--muted); font-weight: 600;
   font-size: 13px; text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--rule); white-space: nowrap; }}
@@ -136,7 +145,7 @@ html, body, .stApp, .stApp *:not([data-testid="stIconMaterial"]) {{ font-family:
 .rp-section .r {{ font-size: 13px; color: var(--muted); font-weight: 600; }}
 .rp-bars {{ display: grid; grid-template-columns: minmax(0, max-content) 1fr max-content; gap: 10px 12px; align-items: center; }}
 .rp-bars .n {{ font-size: 14px; color: var(--ink); overflow-wrap: anywhere; }}
-.rp-bars .b {{ height: 14px; border-radius: 7px; background: var(--primary); }}
+.rp-bars .b {{ height: 14px; border-radius: 7px; background: var(--grad); }}
 .rp-bars .c {{ font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ink); text-align: right; }}
 .rp-legend {{ display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 13px; color: var(--muted); }}
 .rp-legend span {{ display: inline-flex; align-items: center; gap: 6px; }}
@@ -146,7 +155,7 @@ html, body, .stApp, .stApp *:not([data-testid="stIconMaterial"]) {{ font-family:
   padding: 12px 14px; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 360px; overflow: auto; margin: 0; }}
 
 /* ---------- stacked list rows (run summary) */
-.rp-list {{ background: var(--paper); border: 1px solid var(--rule); border-radius: 18px; overflow: hidden; }}
+.rp-list {{ background: var(--paper); border: 1px solid #EEF1F6; border-radius: 22px; overflow: hidden; box-shadow: var(--shadow); }}
 .rp-li {{ display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center;
   padding: 12px 16px; border-bottom: 1px solid var(--rule); }}
 .rp-li:last-child {{ border-bottom: 0; }}
@@ -166,10 +175,10 @@ html, body, .stApp, .stApp *:not([data-testid="stIconMaterial"]) {{ font-family:
 [class*="st-key-feeditem_"] .stButton {{ position: absolute !important; inset: 0; margin: 0 !important; }}
 [class*="st-key-feeditem_"] .stButton button {{ width: 100%; height: 100%; opacity: 0; cursor: pointer; }}
 .rp-feed .id {{ line-height: 1.2; }}
-.rp-feed {{ background: var(--paper); border: 1px solid var(--rule); border-radius: 16px; padding: 12px 14px; }}
+.rp-feed {{ background: var(--paper); border: 1px solid #EEF1F6; border-radius: 20px; padding: 12px 14px; box-shadow: var(--shadow); }}
 [class*="st-key-feeditem_"]:has(button:hover) .rp-feed {{ border-color: var(--primary); }}
 [class*="st-key-feeditem_"]:has(button:focus-visible) .rp-feed {{ outline: 3px solid var(--primary); outline-offset: 2px; }}
-.rp-feed.sel {{ border: 2px solid var(--primary); padding: 11px 13px; box-shadow: inset 6px 0 0 var(--primary); }}
+.rp-feed.sel {{ border: 2px solid var(--primary); padding: 11px 13px; box-shadow: 0 8px 22px rgba(46, 79, 224, 0.25); }}
 .rp-feed .top {{ display: flex; justify-content: space-between; gap: 8px; align-items: center; }}
 .rp-feed .id {{ font-size: 17px; font-weight: 700; color: var(--ink); }}
 .rp-feed .meta {{ font-size: 13px; color: var(--muted); }}
@@ -186,6 +195,14 @@ html, body, .stApp, .stApp *:not([data-testid="stIconMaterial"]) {{ font-family:
 .st-key-feed {{ overflow-y: auto; overflow-x: visible; }}
 .rp-sub .rp-src:hover::after, .rp-sub .rp-src:focus::after {{ left: 0; right: auto; }}
 
+/* the plain "← All events" link-style button stays a text link, not a gradient button */
+.stButton button[data-testid="stBaseButton-tertiary"] {{ background: transparent !important; box-shadow: none !important;
+  border: 0 !important; filter: none !important; }}
+.stButton button[data-testid="stBaseButton-tertiary"] p {{ color: var(--primary) !important; font-weight: 700; }}
+
+/* interactive charts sit on white soft cards */
+[data-testid="stVegaLiteChart"] {{ background: transparent; }}
+[data-testid="stVegaLiteChart"] summary, [data-testid="stVegaLiteChart"] details {{ display: none; }}
 .st-key-scrolltop {{ position: absolute !important; width: 0 !important; height: 0 !important; overflow: hidden; }}
 
 /* ---------- streamlit widgets */
@@ -207,8 +224,9 @@ html, body, .stApp, .stApp *:not([data-testid="stIconMaterial"]) {{ font-family:
 [data-testid="stExpander"] summary {{ color: var(--ink) !important; background: transparent !important; border-radius: 14px; }}
 [data-testid="stExpander"] summary:hover {{ background: var(--raised) !important; }}
 [data-testid="stExpander"] summary p {{ color: var(--ink) !important; font-size: 15px; font-weight: 600; }}
-.stButton button {{ background: var(--paper); color: var(--ink); border: 1px solid var(--rule); border-radius: 12px; }}
-.stButton button:hover {{ border-color: var(--primary); color: var(--primary); }}
+.stButton button {{ background: var(--grad); color: #FFFFFF; border: 0; border-radius: 14px; box-shadow: 0 6px 16px rgba(46, 79, 224, 0.30); }}
+.stButton button p {{ color: #FFFFFF !important; }}
+.stButton button:hover {{ filter: brightness(1.06); }}
 .stButton button p {{ font-size: 15px; font-weight: 600; }}
 [data-testid="stBaseButton-tertiary"] {{ background: transparent !important; border: 0 !important; color: var(--primary) !important; padding-left: 0; }}
 [data-testid="stSelectbox"] [role="group"], [data-testid="stMultiSelect"] [role="group"] {{ background: var(--paper) !important;

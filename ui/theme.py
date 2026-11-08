@@ -152,27 +152,31 @@ html, body, .stApp, .stApp *:not([data-testid="stIconMaterial"]) {{ font-family:
   background: repeating-linear-gradient(135deg, #FFD36B 0 10px, #FFC13B 10px 20px); }}
 
 /* ---------- stats */
-.rp-stats {{ display: grid; grid-template-columns: repeat(var(--n, 4), minmax(0, 1fr)); gap: 12px; }}
-.rp-stat {{ background: var(--paper); border: 1px solid var(--rule); border-radius: 16px; padding: 14px 16px;
-  box-shadow: var(--shadow); min-width: 0; }}
+.rp-stats {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); gap: 12px;
+  align-items: stretch; }}
+.rp-stat {{ background: var(--paper); border: 1px solid var(--rule); border-radius: 16px; padding: 16px 14px;
+  box-shadow: var(--shadow); min-width: 0; min-height: 104px; box-sizing: border-box;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px; }}
 .rp-stat .v {{ font-size: 32px; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; color: var(--ink); }}
 .rp-stat.hero .v {{ font-size: 40px; }}
-.rp-stat .l {{ font-size: 14px; color: var(--muted); margin-top: 4px; line-height: 1.3; }}
+.rp-stat .l {{ font-size: 14px; color: var(--muted); line-height: 1.35; max-width: 22ch; overflow-wrap: break-word; }}
 .rp-stat.ok .v {{ color: var(--ok); }} .rp-stat.bad .v {{ color: var(--bad); }}
 .rp-stat.warn .v {{ color: var(--warn); }} .rp-stat.accent .v {{ color: var(--primary); }}
 
 /* ---------- facts grid */
-.rp-facts {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; margin-top: 12px; }}
-.rp-fact {{ background: var(--raised); border-radius: 12px; padding: 10px 12px; min-width: 0; }}
-.rp-fact .k {{ font-size: 13px; color: var(--muted); }}
-.rp-fact .v {{ font-size: 16px; font-weight: 600; color: var(--ink); overflow-wrap: anywhere; line-height: 1.35; }}
+.rp-facts {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); gap: 10px;
+  margin-top: 12px; align-items: stretch; }}
+.rp-fact {{ background: var(--raised); border-radius: 12px; padding: 12px 14px; min-width: 0; box-sizing: border-box;
+  display: flex; flex-direction: column; justify-content: center; gap: 4px; }}
+.rp-fact .k {{ font-size: 13px; color: var(--muted); line-height: 1.3; }}
+.rp-fact .v {{ font-size: 16px; font-weight: 600; color: var(--ink); overflow-wrap: break-word; line-height: 1.35; }}
 
 /* ---------- tables */
 .rp-tablewrap {{ border: 1px solid var(--rule); border-radius: 14px; overflow: auto; background: var(--paper); margin-top: 10px; }}
 .rp-table {{ width: 100%; border-collapse: separate; border-spacing: 0; font-size: 14px; color: var(--ink); }}
 .rp-table th {{ position: sticky; top: 0; z-index: 1; background: var(--raised); color: var(--muted); font-weight: 600;
   font-size: 13px; text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--rule); white-space: nowrap; }}
-.rp-table td {{ padding: 9px 12px; border-bottom: 1px solid var(--rule); vertical-align: top; line-height: 1.4; }}
+.rp-table td {{ padding: 10px 12px; border-bottom: 1px solid var(--rule); vertical-align: middle; line-height: 1.4; }}
 .rp-table tr:last-child td {{ border-bottom: 0; }}
 .rp-table tr.miss td {{ background: var(--warn_soft); }}
 .rp-table td.num {{ text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }}
@@ -218,9 +222,10 @@ html, body, .stApp, .stApp *:not([data-testid="stIconMaterial"]) {{ font-family:
 [data-testid="stTabs"] button[data-baseweb="tab"][aria-selected="true"] p {{ color: var(--primary) !important; }}
 [data-testid="stTabs"] [data-baseweb="tab-highlight"] {{ background: var(--primary) !important; height: 3px; }}
 [data-testid="stTabs"] [data-baseweb="tab-border"] {{ background: var(--rule) !important; }}
-[data-testid="stTabs"] [role="tablist"] {{ gap: 6px; border-bottom: 1px solid var(--rule); }}
+[data-testid="stTabs"] [role="tablist"] {{ gap: 6px; border-bottom: 1px solid var(--rule); flex-wrap: wrap;
+  overflow: visible !important; }}
 [data-testid="stTab"] {{ background: var(--raised); border-radius: 12px 12px 0 0; padding: 10px 18px !important;
-  transition: background-color .2s ease; }}
+  transition: background-color .2s ease; display: flex; align-items: center; justify-content: center; text-align: center; }}
 [data-testid="stTab"] p {{ font-size: 16px !important; font-weight: 600; color: var(--muted) !important; }}
 [data-testid="stTab"][aria-selected="true"] {{ background: var(--paper); }}
 [data-testid="stTab"][aria-selected="true"] p {{ color: var(--primary) !important; }}

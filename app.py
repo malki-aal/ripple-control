@@ -195,10 +195,15 @@ def similar_panel(iid):
 
 def moves_table(moves):
     where = lambda pl_day: f"{name(pl_day[0])}, {esc(L.plain_date(pl_day[1]))}"  # noqa: E731
-    rows = [[name(p["production_order_id"]), esc(L.tool_label(p["tool"])), where(p["from"]), where(p["to"]),
-             pt(p.get("rationale"))] for p in moves]
-    return C.table([("Build", "id"), ("Action", "nowrap"), ("From", "nowrap"), ("To", "nowrap"), ("Why", "wrap")],
-                   rows, max_height=380)
+    def shift(p):
+        d = (datetime.date.fromisoformat(p["to"][1]) - datetime.date.fromisoformat(p["from"][1])).days
+        return f"{d:+d} d"
+
+    rows = [[name(p["production_order_id"]) + f"<div class='rp-sub'>{esc(p['production_order_id'])}</div>",
+             esc(L.tool_label(p["tool"])) + f"<div class='rp-sub'>{esc(p['tool'])}</div>",
+             where(p["from"]), where(p["to"]), shift(p), esc(L.move_reason(p.get("rationale")))] for p in moves]
+    return C.table([("Car build", "id"), ("What we did", "nowrap"), ("Was planned for", "nowrap"),
+                    ("Now planned for", "nowrap"), ("Shift", "num"), ("Why there", "wrap")], rows, max_height=380)
 
 
 def incident_header(e):
@@ -471,31 +476,63 @@ def tab_impact(t):
             if imp.get("status") == "actionable":
                 edges = incident_edges(t, e)
                 pos = imp.get("affected_pos") or sorted({nid(x["dst"]) for x in edges if x["etype"] == "LOT_USED_IN_ORDER"})
-                focus = st.selectbox("Show", ["All builds"] + pos, key=f"f{safe(iid)}",
-                                     format_func=lambda v: v if v == "All builds" else L.plain(v))
-                vstat = {v["vin"]: v.get("status") for v in imp.get("vehicles") or []}
                 kept = sorted({ntype(x) for ed in edges for x in (ed["src"], ed["dst"])})
+                reach = Counter(ntype(k) for k in {x for ed in edges for x in (ed["src"], ed["dst"])})
+                st.html(C.section("How the problem spreads", f"{len(edges):,} graph links traversed")
+                        + C.stats([(v, lbl, None) for lbl, v in (
+                            ("Car builds hit", reach.get("ProductionOrder", 0)),
+                            ("Customer orders", reach.get("CustomerOrder", 0)),
+                            ("Customers", reach.get("Customer", 0)),
+                            ("Dealers", reach.get("Dealer", 0)),
+                            ("Finished cars", reach.get("Vehicle", 0)),
+                            ("Car models", reach.get("Model", 0))) if v])
+                        + f'<div class="rp-note">{esc(L.graph_caption(kept))} Boxes with a count stand for a group, '
+                          'e.g. "10 customer orders". Pick one build below to see each order, dealer and customer '
+                          'behind it.</div>')
+                focus = st.selectbox("Focus on", ["All affected builds"] + pos, key=f"f{safe(iid)}",
+                                     format_func=lambda v: v if v == "All affected builds" else L.plain(v))
+                vstat = {v["vin"]: v.get("status") for v in imp.get("vehicles") or []}
                 st.html(legend(P, kept, derived=any(x.get("derived") for x in edges)))
-                st.graphviz_chart(dot_graph(P, edges, None if focus == "All builds" else focus, MEANINGS, vstat),
-                                  width="content")
-                with st.expander("Where each link comes from"):
-                    node = lambda k: esc(L.plain(nid(k)))  # noqa: E731
-                    st.html(C.table([("Link", ""), ("From", "nowrap"), ("To", "nowrap"), ("Data file", "")],
-                                    [[esc(x["etype"].lower().replace("_", " ")) + (" (worked out)" if x.get("derived") else ""),
-                                      node(x["src"]), node(x["dst"]), esc(x.get("source_table"))]
-                                     for x in edges], max_height=420))
+                st.graphviz_chart(dot_graph(P, edges, None if focus == "All affected builds" else focus, MEANINGS,
+                                            vstat), width="content")
+                with st.expander(f"Every connection in this picture, and the data file it comes from ({len(edges)})"):
+                    st.html('<div class="rp-note">Each line is one arrow in the picture above, written as a sentence. '
+                            '"Worked out" means the data has no direct column for it: we inferred it from the plant, '
+                            'the build dates and the parts list.</div>'
+                            + C.table([("Connection", "wrap"), ("Link type", "small"), ("Source table", "nowrap"),
+                                       ("Record key", "id")],
+                                      [[esc(L.link_sentence(x["etype"], nid(x["src"]), nid(x["dst"])))
+                                        + (" <span class='rp-sub'>(worked out)</span>" if x.get("derived") else ""),
+                                        esc(x["etype"]),
+                                        f"{esc(L.data_file(x.get('source_table')))}"
+                                        f"<div class='rp-sub'>{esc(x.get('source_table'))}</div>",
+                                        esc(x.get("source_key"))] for x in edges], max_height=420))
             if inc["type"] == "quality_hold":
                 quality_block(e)
             mine = [p for p in moves_all if iid in p.get("incidents", [])]
             used.update(id(p) for p in mine)
             if mine:
-                st.html(C.section("Where each build moved", "hover a dot for the reason"))
+                n_tr = sum(1 for p in mine if p["tool"] == "mes.transfer")
+                slips = [(datetime.date.fromisoformat(p["to"][1]) - datetime.date.fromisoformat(p["from"][1])).days
+                         for p in mine]
+                st.html(C.section("Where each build moved", "hover a dot for the reason")
+                        + C.stats([(len(mine), "Builds rescheduled", None),
+                                   (f"{sum(slips) / len(slips):+.1f} d", "Average shift", None),
+                                   (f"{max(slips):+d} d", "Largest shift", None),
+                                   (n_tr, "Moved to another plant", None)])
+                        + f'<div class="rp-note">One row per car build. The <b>gray dot</b> is the day it was planned; '
+                          f'the <b>colored dot</b> is its new day. Blue means a later day at the same plant'
+                          + (f'; orange means it moved to another plant ({n_tr} build{"s" if n_tr != 1 else ""})'
+                             if n_tr else "") + ". The longer the line, the bigger the shift."
+                          + (" A negative shift means another plant could build the car sooner than first planned."
+                             if min(slips) < 0 else "") + "</div>")
                 st.altair_chart(CH.build_moves([{
                     "build": L.plain(p["production_order_id"]), "from_day": p["from"][1], "to_day": p["to"][1],
                     "from_txt": f"{L.plain(p['from'][0])}, {L.plain_date(p['from'][1])}",
                     "to_txt": f"{L.plain(p['to'][0])}, {L.plain_date(p['to'][1])}",
                     "how": "Another plant" if p["tool"] == "mes.transfer" else "Later day, same plant",
-                    "why": L.plain_text(p.get("rationale"))} for p in mine]), theme=None, width="stretch")
+                    "shift": f"{(datetime.date.fromisoformat(p['to'][1]) - datetime.date.fromisoformat(p['from'][1])).days:+d} days",
+                    "why": L.move_reason(p.get("rationale"))} for p in mine]), theme=None, width="stretch")
                 with st.expander("Same moves as a table"):
                     st.html(moves_table(mine))
             similar_panel(iid)
@@ -515,17 +552,20 @@ def tab_impact(t):
             pol = dp.get("policy")
             st.html(
                 '<div class="rp-stack">'
-                + '<div class="rp-h2" style="font-size:22px">Dealers and loaners</div>'
+                + '<div class="rp-h2" style="font-size:22px">Dealers and loaner cars</div>'
                 + C.policy_lines(pol if isinstance(pol, list) else [pol] if pol else [])
-                + C.stats([(notified, "dealer notices", None), (got, "loaners assigned", "ok"),
-                           (len(miss), "missed out (pool empty)", "warn" if miss else None),
+                + C.stats([(notified, "Dealer notices sent", None), (got, "Loaner cars given", None),
+                           (len(miss), "Eligible, but none left", None),
                            (len(std), "Standard tier, notice only", None)])
-                + C.table([("Priority", "num"), ("Dealer", "nowrap"), ("Customer order", "nowrap"), ("Tier", ""),
-                           ("Promised", "nowrap"), ("Loaner", ""), ("Why", "wrap")],
+                + '<div class="rp-note">Every dealer with a delayed order got one notice. Loaner cars go to Platinum '
+                  'and Gold customers only: Platinum first, then the earliest promised delivery date, until that '
+                  "dealer's loaners run out. Rows still waiting for a loaner are listed first.</div>"
+                + C.table([("Place in line", "num"), ("Dealer", "nowrap"), ("Customer order", "nowrap"), ("Tier", ""),
+                           ("Promised for", "nowrap"), ("Loaner", ""), ("Why", "wrap")],
                           [[esc(x.get("rank")), name(x.get("dealer_id")), name(x.get("customer_order_id")),
                             esc(x.get("tier")), esc(L.plain_date(x.get("promised_date"))),
-                            C.tone_pill(P, "assigned", "ok") if x.get("assigned") else C.tone_pill(P, "missed out", "warn", True),
-                            pt(x.get("why"))] for x in ordered],
+                            C.tone_pill(P, "given", "ok") if x.get("assigned") else C.tone_pill(P, "none left", "warn"),
+                            esc(L.loaner_reason(x.get("why")))] for x in ordered],
                           max_height=380, row_class=lambda i: "" if ordered[i].get("assigned") else "miss")
                 + "</div>")
 

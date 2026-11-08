@@ -152,7 +152,8 @@ def build_moves(moves):
     y = alt.Y("build:N", sort=order, title=None)
     x = alt.X("when:T", title=None, axis=alt.Axis(format="%b %d", tickCount=6))
     tip = [alt.Tooltip("build:N", title="Build"), alt.Tooltip("from_txt:N", title="Was"),
-           alt.Tooltip("to_txt:N", title="Now"), alt.Tooltip("why:N", title="Why")]
+           alt.Tooltip("to_txt:N", title="Now"), alt.Tooltip("shift:N", title="Shift"),
+           alt.Tooltip("why:N", title="Why")]
     hover = alt.selection_point(name="m", on="pointerover", fields=["build"], empty=False, clear="pointerout")
     line = alt.Chart(src).mark_line(strokeWidth=3, color="#c9d2e0").encode(x=x, y=y, detail="build:N")
     was = (alt.Chart(src).transform_filter(alt.datum.end == "Was")

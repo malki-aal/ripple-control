@@ -66,6 +66,72 @@ def plain_text(text):
 def plain_date(s):
     return _d(s)
 
+
+# ---------------------------------------------------------------- knowledge-graph links in words
+LINK_VERB = {
+    "SUPPLIES_SHIPMENT": "sends", "SHIPMENT_OF_PART": "carries", "SHIPMENT_TO_PLANT": "is delivered to",
+    "PART_IN_MODEL": "is needed to build", "PLANT_BUILDS_MODEL": "can build", "PLANT_SCHEDULES_ORDER": "has scheduled",
+    "ORDER_OF_MODEL": "is a build of", "ORDER_FULFILLS_CO": "fills", "CO_AT_DEALER": "was placed at",
+    "CO_FOR_CUSTOMER": "belongs to", "SUPPLIES_LOT": "made", "LOT_OF_PART": "is a batch of",
+    "LOT_AT_PLANT": "was installed at", "LOT_USED_IN_ORDER": "went into", "ORDER_PRODUCED_VEHICLE": "produced",
+    "VEHICLE_AT_DEALER": "is at", "VEHICLE_OWNED_BY": "is owned by", "DEALER_HAS_LOANER_POOL": "has",
+}
+DATA_FILE = {
+    "inbound_shipments.csv": "Inbound shipments", "part_lots.csv": "Parts batches", "bom.csv": "Bill of materials",
+    "production_orders.csv": "Production schedule", "customer_orders.csv": "Customer orders",
+    "finished_vehicles.csv": "Finished vehicles", "plant_models.csv": "Plant capabilities", "loaners.csv": "Loaner pools",
+}
+
+
+def link_sentence(etype, src, dst):
+    """'Shipment 182 carries surround-view camera kit'."""
+    return f"{plain(src)} {LINK_VERB.get(etype, etype.lower().replace('_', ' '))} {plain(dst)}"
+
+
+def data_file(name):
+    return DATA_FILE.get(name, name or "")
+
+
+def move_reason(text):
+    """Plain wording for the planner's reasons (falls back to ID/date clean-up for anything unexpected)."""
+    s = str(text or "")
+    m = re.fullmatch(r"earliest same-plant day on/after recovery (\S+) with a free slot \((\d+) of (\d+) free\)", s)
+    if m:
+        return (f"First day at the same plant, on or after the restart ({_d(m[1])}), that still had an open slot "
+                f"({m[2]} of {m[3]} slots free).")
+    m = re.fullmatch(r"no free same-plant slot at (\S+) from (\S+) to (\S+); earliest free day at a plant that builds "
+                     r"(\S+) \(day first, then plants\.csv order\)", s)
+    if m:
+        return (f"{plain(m[1])} had no open slot from {_d(m[2])} to {_d(m[3])}, so it moved to the earliest open day "
+                f"at another plant that builds the {plain(m[4])}.")
+    return plain_text(s)
+
+
+def loaner_reason(text):
+    s = str(text or "")
+    m = re.fullmatch(r"rank (\d+) of (\d+) eligible; (\d+) in pool", s)
+    if m:
+        return f"#{m[1]} in line of {m[2]} eligible customers; the dealer had {m[3]} loaner car{'s' if m[3] != '1' else ''}."
+    m = re.fullmatch(r"pool exhausted \((\d+) available at (\S+)\)", s)
+    if m:
+        return f"No loaner left: {plain(m[2])} had only {m[1]}, and they went to customers higher in line."
+    return plain_text(s)
+
+
+def graph_caption(types):
+    """'How to read' line for an impact graph, built from the kinds of boxes it contains."""
+    t = set(types)
+    if "Lot" in t:
+        return ("Read left to right: the supplier made a faulty parts batch, the batch went into these car builds, "
+                "and each build produced finished cars (shown sold vs. still in stock).")
+    if "Shipment" in t:
+        return ("Read left to right: the supplier's late shipment carries a part, that part is needed to build these "
+                "car models, so the car builds of those models at that plant are hit, and each build fills customer orders.")
+    if "Plant" in t:
+        return ("Read left to right: the plant that is down has these car builds scheduled during the outage, and each "
+                "build fills customer orders.")
+    return "Read left to right: each arrow means the box on the left directly affects the box on the right."
+
 TOOL_LABEL = {
     "mes.get_schedule": "Check plant schedule",
     "mes.reschedule": "Move build to a later day",

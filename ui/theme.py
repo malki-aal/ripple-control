@@ -160,18 +160,12 @@ html, body, .stApp, .stApp *:not([data-testid="stIconMaterial"]) {{ font-family:
 /* ---------- event feed */
 .st-key-feed {{ position: sticky; top: 12px; max-height: calc(100vh - 140px); overflow-y: auto; padding: 2px 6px 8px 2px; }}
 [class*="st-key-feeditem_"] {{ position: relative; gap: 0 !important; }}
-/* the message name is a link drawn exactly over the hidden placeholder name in the card's top-left corner */
+/* the whole white card is clickable: an invisible button covers it (the source name sits above it for its hover) */
 [class*="st-key-feeditem_"] [data-testid="stElementContainer"]:has(.stButton) {{ position: absolute !important;
-  top: 11px; left: 15px; z-index: 3; width: max-content !important; height: auto !important; margin: 0 !important; }}
-[class*="st-key-feeditem_"] .stButton {{ position: static !important; margin: 0 !important; width: max-content !important; }}
-[class*="st-key-feeditem_"] .stButton button {{ width: max-content !important; white-space: nowrap; }}
-[class*="st-key-feeditem_"] .stButton button {{ min-height: 0 !important; height: auto; padding: 0 !important;
-  border: 0 !important; background: transparent !important; line-height: 1.2; }}
-[class*="st-key-feeditem_"] .stButton button p {{ font-size: 17px !important; font-weight: 700 !important;
-  color: var(--primary) !important; text-decoration: underline; text-decoration-thickness: 2px;
-  text-underline-offset: 4px; line-height: 1.2 !important; margin: 0; }}
-[class*="st-key-feeditem_"] .stButton button:hover p {{ color: var(--ink) !important; }}
-.rp-feed .id.ph {{ visibility: hidden; line-height: 1.2; }}
+  inset: 0; z-index: 3; width: auto !important; height: auto !important; margin: 0 !important; }}
+[class*="st-key-feeditem_"] .stButton {{ position: absolute !important; inset: 0; margin: 0 !important; }}
+[class*="st-key-feeditem_"] .stButton button {{ width: 100%; height: 100%; opacity: 0; cursor: pointer; }}
+.rp-feed .id {{ line-height: 1.2; }}
 .rp-feed {{ background: var(--paper); border: 1px solid var(--rule); border-radius: 16px; padding: 12px 14px; }}
 [class*="st-key-feeditem_"]:has(button:hover) .rp-feed {{ border-color: var(--primary); }}
 [class*="st-key-feeditem_"]:has(button:focus-visible) .rp-feed {{ outline: 3px solid var(--primary); outline-offset: 2px; }}

@@ -304,7 +304,7 @@ def feed_card(t, selected):
         foot.append(C.tone_pill(P, "ignored", "ok"))
     if n_failed(t):
         foot.append(C.tone_pill(P, f"{n_failed(t)} failed", "bad"))
-    return (f'<div class="rp-feed{" sel" if selected else ""}"><div class="top"><span class="id ph" aria-hidden="true">{name(t["event_id"])}</span>'
+    return (f'<div class="rp-feed{" sel" if selected else ""}"><div class="top"><span class="id">{name(t["event_id"])}</span>'
             f'<span class="meta">{esc(t["received_at"][11:16])} · {source(t["source"])}</span></div>'
             f'<div class="types">{pills}</div><div class="foot">{"".join(f"<span>{x}</span>" for x in foot)}</div></div>')
 
@@ -573,9 +573,9 @@ def type_filter():
 def feed_item(t):
     with st.container(key=f"feeditem_{safe(t['event_id'])}"):
         st.html(feed_card(t, sel == t["event_id"]))
-        # the message name itself is the link (drawn over the placeholder in the card's top-left corner)
-        st.button(L.plain(t["event_id"]), key=f"b{t['event_id']}", on_click=select, args=(t["event_id"],),
-                  type="tertiary", help=None)
+        # invisible button stretched over the whole card, so clicking anywhere on it opens the message
+        st.button(f"Open {L.plain(t['event_id']).lower()}", key=f"b{t['event_id']}", on_click=select,
+                  args=(t["event_id"],))
 
 
 def page_feed():

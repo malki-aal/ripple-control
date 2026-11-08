@@ -182,6 +182,11 @@ html, body, .stApp, .stApp *:not([data-testid="stIconMaterial"]) {{ font-family:
 .st-key-feed {{ overflow-y: auto; overflow-x: visible; }}
 .rp-sub .rp-src:hover::after, .rp-sub .rp-src:focus::after {{ left: 0; right: auto; }}
 
+/* front-page message cards: equal height per row, Open button at the bottom */
+.st-key-card_events [data-testid="stHorizontalBlock"] {{ align-items: stretch; }}
+.st-key-card_events [data-testid="stColumn"] > [data-testid="stVerticalBlock"] {{ height: 100%; }}
+.st-key-card_events [data-testid="stLayoutWrapper"]:has(> [class*="st-key-card_msg_"]) {{ flex: 1 1 auto; }}
+[class*="st-key-card_msg_"] {{ height: 100%; justify-content: space-between; }}
 .st-key-scrolltop {{ position: absolute !important; width: 0 !important; height: 0 !important; overflow: hidden; }}
 
 /* ---------- streamlit widgets */

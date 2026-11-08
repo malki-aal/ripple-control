@@ -141,6 +141,7 @@ def select(eid):
 
 def clear_sel():
     st.session_state.sel = None
+    st.session_state["_scrolled_for"] = None
 
 
 st.session_state.setdefault("sel", None)
@@ -521,7 +522,22 @@ def event_story(t):
             f'<div class="t">Result</div><p>{result}</p></div>')
 
 
+def scroll_to_top_once(token):
+    """After a message is opened, jump the page back to the top so its title and details are in view.
+    Runs once per newly opened message (a tiny invisible script; the app stays read-only)."""
+    if st.session_state.get("_scrolled_for") == token:
+        return
+    st.session_state["_scrolled_for"] = token
+    with st.container(key="scrolltop"):  # fixed script, no user or data text inside except a sanitised id
+        st.iframe(
+            f"<script>/* {safe(token)} */ const go = () => {{ const d = window.parent.document;"
+            "const m = d.querySelector('[data-testid=\"stMain\"]'); if (m) m.scrollTop = 0;"
+            "window.parent.scrollTo(0, 0); }; go(); [150, 400, 900].forEach(t => setTimeout(go, t));</script>",
+            height=1)
+
+
 def detail(t):
+    scroll_to_top_once(t["event_id"])
     ev = events.get(t["event_id"])
     st.button("← All events", key="back", on_click=clear_sel, type="tertiary")
     status = (C.tone_pill(P, "sent to a person", "warn", True) if t["escalations"]

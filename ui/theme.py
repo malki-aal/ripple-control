@@ -230,7 +230,7 @@ html, body, .stApp, .stApp *:not([data-testid="stIconMaterial"]) {{ font-family:
 .rp-src {{ position: relative; z-index: 4; cursor: help; text-decoration: underline solid var(--ink);
   text-decoration-thickness: 1.5px; text-underline-offset: 3px; }}
 .rp-src:hover::after, .rp-src:focus::after {{ content: attr(data-tip); position: absolute; right: 0; top: calc(100% + 6px);
-  width: max-content; max-width: 240px; white-space: normal; text-align: left; background: var(--hero); color: #FFFFFF;
+  width: max-content; max-width: 240px; white-space: normal; text-align: left; background: var(--ink); color: #FFFFFF; box-shadow: 0 4px 12px rgba(17, 24, 39, 0.18);
   font-size: 13px; font-weight: 500; line-height: 1.4; padding: 8px 10px; border-radius: 8px; z-index: 20; }}
 .st-key-feed, [class*="st-key-feeditem_"], .rp-feed {{ overflow: visible; }}
 .st-key-feed {{ overflow-y: auto; overflow-x: visible; }}

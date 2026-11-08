@@ -15,6 +15,9 @@ services:
       --server.headless true
       -- --run submission --events data/events.json
     healthCheckPath: /_stcore/health
+    # Root domain; Render adds www.fibonachi.biz as a redirect to it.
+    domains:
+      - fibonachi.biz
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.6

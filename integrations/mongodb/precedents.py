@@ -10,7 +10,7 @@ For each incident in a completed run:
   2. embed it with Gemini (gemini-embedding-2, 768 dims, SEMANTIC_SIMILARITY); cached per run.
   3. upsert one document per incident into <db>.incidents (_id = run_id:incident_id), ensure a vectorSearch index,
   4. $vectorSearch the top neighbours (same run, other events), and write <run>/similar_incidents.json in the
-     contract agreed with the UI (ORLANDO_UI_BUILD_BRIEF.md section 6).
+     contract read by the UI (ui/similar.py).
 Scores are on Atlas's cosine scale (1 + cos) / 2 in [0, 1]; the local backend uses the same formula.
 "why_similar" is computed in code from shared attributes, never by an LLM. Nothing here changes any decision.
 """

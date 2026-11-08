@@ -61,7 +61,7 @@ SELECT * FROM V_ESCALATIONS;   SELECT * FROM V_FAILED_CALLS;
 - Queried with Atlas `$vectorSearch` (index `incident_vec`, cosine, filtered to the run, other events only). Same-type
   precedents come first; another type is shown only at a score of 0.96 or above. `why_similar` is computed in code
   from shared attributes.
-- Output: `<run>/similar_incidents.json` (contract in `ORLANDO_UI_BUILD_BRIEF.md` section 6), copied to `submission/`.
+- Output: `<run>/similar_incidents.json` (schema `ripple-similar/1.0`, read by `ui/similar.py`), copied to `submission/`.
 
 ```
 python integrations/mongodb/precedents.py --run runs/run2 --also submission    # Atlas (MONGODB_URI in .env)

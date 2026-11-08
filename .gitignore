@@ -5,3 +5,6 @@ __pycache__/
 *.sqlite
 runs/
 databricks_upload/
+
+# private team notes
+ORLANDO_UI_BUILD_BRIEF.md

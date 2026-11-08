@@ -227,5 +227,5 @@ data is the organizer's synthetic dataset, so it's fine for the demo, but don't 
 - [ ] No files outside the UI were changed. Run `git diff --stat main..ui`, which should only touch `app.py`, new UI
       helper files, `.streamlit/`, assets and `requirements.txt` if needed.
 
-**Send Malakai:** the `ui` branch name, the run command, a 30–60 second screen recording or 4–5 screenshots, and a
-list of anything still mocked or blocked.
+**Send Malakai:** the `ui` branch name, the run command, and a list of anything still mocked or blocked. The demo
+recording is decided later; don't make one for now.

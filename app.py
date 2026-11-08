@@ -3,7 +3,9 @@
     streamlit run app.py -- --run submission --events data/events.json [--similar path/to/similar_incidents.json]
 
 Reads only recorded run artifacts (event_traces.jsonl, action_log.jsonl, client_calls.jsonl, graph/,
-similar_incidents.json), so it shows exactly what the agents did. No tool calls are made from the UI.
+similar_incidents.json), so it shows exactly what the agents did. The UI never calls the organizer server.
+The one exception to "read only" is Human review: a confirmed message is previewed on a fresh in-process sandbox
+copy of the organizer's system (ripple/review.py), and decisions are saved to runs/reviews/decisions.jsonl.
 """
 import argparse
 import datetime
@@ -23,6 +25,8 @@ from ui.components import TYPE_LABEL, esc
 from ui.graph import dot_graph, incident_edges, legend, nid, ntype, ontology_dot
 from ui.similar import load_similar, neighbours
 from ui.theme import P, css
+from ui.why import why_html
+from ripple import review
 
 st.set_page_config(page_title="Ripple", page_icon=":material/waves:", layout="wide", initial_sidebar_state="collapsed")
 
@@ -67,7 +71,8 @@ def load(run_dir, events_path):
 # ============================================================================ data
 args = parse_args()
 traces, log, log_exists, calls, manifest, onto, events = load(args.run, args.events)
-L.load_reference_names(os.path.dirname(os.path.abspath(args.events)))
+DATA_DIR = os.path.dirname(os.path.abspath(args.events))
+L.load_reference_names(DATA_DIR)
 SIM = load_similar(args.run, args.similar)
 MEANINGS = {k: v.get("meaning", "") for k, v in (onto.get("edge_types") or {}).items()}
 
@@ -598,6 +603,18 @@ def tab_impact(t):
                 + "</div>")
 
 
+def why_picker(t, rows, key, where="organizer system"):
+    """'Why this action?': pick one action, see the rule, the message evidence, the graph links and the checks."""
+    with st.container(key=f"card_{key}"):
+        st.html(C.section("Why this action?", "rule · evidence · graph links · checks"))
+        seq = st.selectbox("Pick an action", [None] + [r["seq"] for r in rows], key=key, label_visibility="collapsed",
+                           format_func=lambda s: "Pick an action to see why it was taken" if s is None else
+                           f"#{s} · " + next(f"{L.tool_label(r['tool'])} · {L.describe(r['tool'], r.get('args'))}"
+                                             for r in rows if r["seq"] == s))
+        if seq is not None:
+            st.html(why_html(t, seq, DATA_DIR, where))
+
+
 def tab_execution(t):
     ex = t["execution"]
     bad = sum(1 for r in ex if r["status"] != "confirmed")
@@ -623,6 +640,8 @@ def tab_execution(t):
                 max_height=520))
         else:
             st.html('<div class="rp-note">Only look-ups for this event.</div>')
+        if rows:
+            why_picker(t, rows, key=f"why{safe(t['event_id'])}")
     if t["blocked"]:
         st.html(C.callout("bad", "<b>Blocked by validation before sending:</b>") + C.pre_json(t["blocked"]))
     for r in t["escalations"]:
@@ -809,6 +828,14 @@ def page_review():
         if not esc_ev:
             st.html(C.callout("ok", "<b>Nothing escalated in this run.</b>"))
             return
+        decisions = review.load()
+        decided = {d["incident_id"]: d for d in decisions}
+        items = review.pending(traces, decisions)
+        with st.container(key="card_reviewer"):
+            r1, r2 = st.columns([2, 3])
+            reviewer = r1.text_input("Your name (recorded with every decision)", key="reviewer").strip()
+            r2.radio("Read confirmed messages with", ["rules", "cascade"], key="rev_kind", horizontal=True,
+                     help="rules: no network. cascade: rules first, the language model only when the rules are unsure.")
         for t in esc_ev:
             with st.container(key=f"card_rev_{safe(t['event_id'])}"):
                 writes = [r for r in t["execution"] if r["kind"] == "write"]
@@ -824,7 +851,7 @@ def page_review():
                     '<div class="rp-stack">'
                     + f'<div class="rp-head"><div class="rp-h2" style="font-size:22px">{name(t["event_id"])}</div>'
                     f'<div class="rp-row">{"".join(C.type_pill(P, x) for x in types_of(t))}'
-                    f'{C.tone_pill(P, "waiting on a human", "warn", True)}</div></div>'
+                    f'{review_pill(t, decided)}</div></div>'
                     + (f'<div class="rp-quote">{esc(events[t["event_id"]]["text"])}</div>' if t["event_id"] in events else "")
                     + body
                     + (C.callout("warn", "<b>Unresolved:</b> " + "; ".join(esc(x) for x in unres)) if unres else "")
@@ -833,6 +860,100 @@ def page_review():
                     + "</div>")
                 st.button(f"Open {L.plain(t['event_id']).lower()}", key=f"rev_{safe(t['event_id'])}", on_click=select,
                           args=(t["event_id"],))
+                for it in [i for i in items if i["event_id"] == t["event_id"]]:
+                    review_controls(it, reviewer, decided.get(it["incident_id"]))
+        decision_log(decisions)
+
+
+def review_pill(t, decided):
+    ds = [decided[e["incident"]["incident_id"]] for e in t["incidents"] if e["incident"]["incident_id"] in decided]
+    if not ds:
+        return C.tone_pill(P, "waiting on a human", "warn", True)
+    return C.tone_pill(P, f"reviewed: {ds[-1]['decision']}", "ok")
+
+
+@st.cache_resource
+def sandbox_engine(data_dir):
+    from ripple.graph import KnowledgeGraph
+    from ripple.world import World
+    w = World.load(data_dir)
+    return w, KnowledgeGraph(w)
+
+
+@st.cache_resource
+def sandbox_extractor(data_dir, kind):
+    from ripple.extract import make_extractor
+    return make_extractor(sandbox_engine(data_dir)[0], kind)
+
+
+def review_controls(it, reviewer, done):
+    """Dismiss, or confirm with the missing facts -> preview on a sandbox copy -> approve or reject."""
+    k = safe(it["incident_id"])
+    with st.container(key=f"card_act_{k}"):
+        if done:
+            st.html(C.callout("ok", f"<b>{esc(done['decision'].capitalize())}</b> by {esc(done['reviewer'])} at "
+                                    f"{esc(done['at'][11:16])}" + (f": {esc(done['note'])}" if done["note"] else "")
+                              + (f" · {done['outcome']['writes']} changes approved in the sandbox" if done.get("outcome")
+                                 and done["decision"] == "approved" else "")))
+            return
+        st.html(C.section("Your decision", "runs in a sandbox copy · never touches the official log"))
+        mode = st.radio("Decision", ["Confirm it with the missing facts", "Dismiss: no action needed"], key=f"m_{k}",
+                        horizontal=True, label_visibility="collapsed")
+        if mode.startswith("Dismiss"):
+            note = st.text_input("Why no action is needed", key=f"n_{k}")
+            if st.button("Record dismissal", key=f"d_{k}", disabled=not reviewer):
+                review.record(it, "dismissed", reviewer, note)
+                st.rerun()
+            return
+        txt = st.text_area("Confirmed message: name the supplier or plant, the part, and the dates", key=f"t_{k}",
+                           placeholder="e.g. Confirmed by <supplier>: the <part> due at <plant> on <date> will now arrive <date>.")
+        if st.button("Preview what the agents would do", key=f"p_{k}", disabled=not txt.strip()):
+            with st.spinner("Running the agents on a sandbox copy"):
+                st.session_state[f"tr_{k}"] = review.preview(*sandbox_engine(DATA_DIR), sandbox_extractor(
+                    DATA_DIR, st.session_state.get("rev_kind", "rules")), it, txt, data_dir=DATA_DIR)
+                st.session_state[f"txt_{k}"] = txt
+        tr = st.session_state.get(f"tr_{k}")
+        if not tr:
+            return
+        o = review.outcome(tr)
+        st.html(C.stats([(", ".join(C.TYPE_LABEL.get(x, x) for x in o["types"]), "read as", None),
+                         (o["writes"], "changes proposed", None),
+                         (o["blocked"], "blocked by checks", "bad" if o["blocked"] else None),
+                         (o["failed"], "failed", "bad" if o["failed"] else None)]))
+        if o["escalated_again"]:
+            st.html(C.callout("warn", "<b>The agents still would not act.</b> " + pt(" ".join(tr["escalations"]))
+                              + " Add the missing fact and preview again."))
+        else:
+            ws = review.writes(tr)
+            st.html(C.callout("ok", pt(tr["summary"]))
+                    + C.table([("#", "num"), ("Action", "nowrap"), ("Details", "wrap"), ("Rule", "nowrap")],
+                              [[esc(r["seq"]), f"<b>{esc(L.tool_label(r['tool']))}</b>", esc(L.describe(r["tool"], r["args"])),
+                                esc((r.get("rule") or "").split(":")[0])] for r in ws], max_height=320))
+            why_picker(tr, ws, key=f"why_rev_{k}", where="sandbox copy of the organizer system")
+        note = st.text_input("Note (optional)", key=f"rn_{k}")
+        a, b, _ = st.columns([1, 1, 3])
+        if a.button("Approve these actions", key=f"a_{k}", type="primary",
+                    disabled=not reviewer or o["escalated_again"] or not o["writes"]):
+            review.record(it, "approved", reviewer, note, st.session_state[f"txt_{k}"], tr)
+            st.rerun()
+        if b.button("Reject", key=f"r_{k}", disabled=not reviewer):
+            review.record(it, "rejected", reviewer, note, st.session_state[f"txt_{k}"], tr)
+            st.rerun()
+        if not reviewer:
+            st.html('<div class="rp-note">Enter your name at the top of this page to record a decision.</div>')
+
+
+def decision_log(decisions):
+    st.html(C.section("Decision log", "saved to runs/reviews/decisions.jsonl"))
+    if not decisions:
+        st.html('<div class="rp-note">No decisions yet.</div>')
+        return
+    st.html(C.table([("Time", "nowrap"), ("Reviewer", "nowrap"), ("Message", "nowrap"), ("Decision", "nowrap"),
+                     ("Changes", "num"), ("Note", "wrap")],
+                    [[esc(d["at"].replace("T", " ")), esc(d["reviewer"]), esc(L.plain(d["event_id"])),
+                      C.tone_pill(P, d["decision"], "ok" if d["decision"] != "rejected" else "warn"),
+                      esc((d.get("outcome") or {}).get("writes", 0) if d["decision"] == "approved" else 0), esc(d["note"])]
+                     for d in reversed(decisions)]))
 
 
 def page_audit():
@@ -862,6 +983,16 @@ def page_audit():
                            for r in rows])
         if len(df):
             st.dataframe(df, hide_index=True, width="stretch", height=520)
+            pick = [r for r in rows if r["kind"] != "read" and r["event_id"] in by_id][:2000]
+            eid_of = {r["seq"]: r["event_id"] for r in pick}
+            with st.container(key="card_why_audit"):
+                st.html(C.section("Why this action?", "rule · evidence · graph links · checks"))
+                seq = st.selectbox("Pick an action", [None] + list(eid_of), key="why_audit", label_visibility="collapsed",
+                                   format_func=lambda s: "Pick an action to see why it was taken" if s is None else
+                                   f"#{s} · {L.plain(eid_of[s])} · " + next(
+                                       f"{L.tool_label(r['tool'])} · {L.describe(r['tool'], r['args'])}" for r in pick if r["seq"] == s))
+                if seq is not None:
+                    st.html(why_html(by_id[eid_of[seq]], seq, DATA_DIR))
         else:
             st.html('<div class="rp-note">No actions match.</div>')
 

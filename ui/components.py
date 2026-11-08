@@ -3,7 +3,7 @@ import html
 import json
 
 TYPE_LABEL = {"supplier_delay": "Supplier delay", "plant_outage": "Plant outage", "quality_hold": "Quality hold",
-              "noise": "Noise", "unconfirmed": "Unconfirmed"}
+              "noise": "Not a problem", "unconfirmed": "Unconfirmed rumor"}
 STATUS = {"confirmed": ("✓", "ok"), "rejected": ("✕", "bad"), "unknown": ("?", "warn"), "blocked": ("!", "bad")}
 
 

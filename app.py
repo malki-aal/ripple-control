@@ -17,6 +17,7 @@ import pandas as pd
 import streamlit as st
 
 from ui import components as C
+from ui import labels as L
 from ui.components import TYPE_LABEL, esc
 from ui.graph import dot_graph, incident_edges, legend, nid, ntype, ontology_dot
 from ui.similar import load_similar, neighbours
@@ -287,22 +288,22 @@ def overview():
                         for k, v in inc_types.most_common())
         st.html(
             '<div class="rp-card rp-stack">' + title("Run summary")
-            + C.stats([(TOT["events"], "events handled", None), (TOT["calls"], "tool calls", None),
-                       (TOT["failed"], "failed calls", "ok" if not TOT["failed"] else "bad"),
-                       (TOT["writes"], "confirmed writes", None),
+            + C.stats([(TOT["events"], "messages handled", None), (TOT["calls"], "actions taken", None),
+                       (TOT["failed"], "failed actions", "ok" if not TOT["failed"] else "bad"),
+                       (TOT["writes"], "changes made", None),
                        (TOT["escalated"], "escalated to a human", "warn" if TOT["escalated"] else "ok"),
-                       (TOT["noise"], "noise, 0 calls", None)], hero=True)
+                       (TOT["noise"], "junk messages ignored", None)], hero=True)
             + f'<div class="rp-row" style="gap:18px">{chips}</div>'
             + "</div>")
 
 
 def feed_card(t, selected):
     pills = "".join(C.type_pill(P, x) for x in types_of(t))
-    foot = [f"{len(t['execution'])} calls · {n_writes(t)} writes"]
+    foot = [f"{n_writes(t)} changes made"]
     if t["escalations"]:
-        foot.append(C.tone_pill(P, "escalated", "warn", dashed=True))
+        foot.append(C.tone_pill(P, "sent to a person", "warn", dashed=True))
     elif not t["execution"]:
-        foot.append(C.tone_pill(P, "0 calls", "ok"))
+        foot.append(C.tone_pill(P, "ignored", "ok"))
     if n_failed(t):
         foot.append(C.tone_pill(P, f"{n_failed(t)} failed", "bad"))
     return (f'<div class="rp-feed{" sel" if selected else ""}"><div class="top"><span class="id">{esc(t["event_id"])}</span>'
@@ -419,32 +420,28 @@ def tab_impact(t):
 def tab_execution(t):
     ex = t["execution"]
     bad = sum(1 for r in ex if r["status"] != "confirmed")
-    st.html(C.stats([(len(ex), "tool calls", None), (sum(1 for r in ex if r["kind"] == "read"), "reads", None),
-                     (sum(1 for r in ex if r["kind"] == "write"), "writes", None),
-                     (sum(1 for r in ex if r["kind"] == "escalation"), "escalations", None),
+    st.html(C.stats([(len(ex), "actions in total", None),
+                     (sum(1 for r in ex if r["kind"] == "write"), "changes made", None),
+                     (sum(1 for r in ex if r["kind"] == "read"), "look-ups", None),
+                     (sum(1 for r in ex if r["kind"] == "escalation"), "sent to a person", None),
                      (bad + len(t["blocked"]), "failed or blocked", "bad" if bad or t["blocked"] else "ok")]))
     if not ex:
         reason = " ".join(esc(e.get("reason", "")) for e in t["incidents"])
-        st.html(C.callout("ok", f"<b>No tool calls.</b> {reason}"))
+        st.html(C.callout("ok", f"<b>No actions taken, on purpose.</b> {reason}"))
     else:
-        show_reads = st.toggle("Show read calls", value=False, key=f"rd{safe(t['event_id'])}")
+        show_reads = st.toggle("Show look-ups too", value=False, key=f"rd{safe(t['event_id'])}")
         rows = [r for r in ex if show_reads or r["kind"] != "read"]
-
-        def call_detail(r):
-            a = esc(C.short_json({k: v for k, v in (r.get("args") or {}).items() if k != "message"}, 150))
-            res = esc(C.short_json(r.get("body"), 110)) if r["status"] == "confirmed" else esc(r.get("error"))
-            return f"<div>{a}</div><div style='margin-top:4px'>→ {res}</div>"
-
         if rows:
             st.html(C.table(
-                [("#", "num"), ("Status", ""), ("Tool", "id"), ("Purpose", "wrap"), ("Arguments → result", "small"),
-                 ("ms", "num")],
-                [[esc(r["seq"]), C.status_pill(P, r["status"]),
-                  f"{esc(r['tool'])}<div class='rp-sub'>{esc(r.get('agent'))}</div>",
-                  esc(r.get("purpose")), call_detail(r), esc(r.get("ms"))] for r in rows],
+                [("#", "num"), ("Result", ""), ("Action", "nowrap"), ("Details", "nowrap"), ("Why", "wrap"),
+                 ("Done by", "nowrap")],
+                [[esc(r["seq"]), C.tone_pill(P, L.outcome(r["tool"], r.get("body"), r["status"]),
+                                             "ok" if r["status"] == "confirmed" else "bad"),
+                  f"<b>{esc(L.tool_label(r['tool']))}</b>", esc(L.describe(r["tool"], r.get("args"))),
+                  esc(r.get("purpose")), esc(r.get("agent"))] for r in rows],
                 max_height=520))
         else:
-            st.html('<div class="rp-note">Only read calls for this event.</div>')
+            st.html('<div class="rp-note">Only look-ups for this event.</div>')
     if t["blocked"]:
         st.html(C.callout("bad", "<b>Blocked by validation before sending:</b>") + C.pre_json(t["blocked"]))
     for r in t["escalations"]:
@@ -518,7 +515,7 @@ def event_story(t):
     if ok["escalate"]:
         did.append("Sent it to a person to check. No operational changes were made.")
     if not t["execution"]:
-        did.append("Nothing, on purpose: no tool calls were made.")
+        did.append("Nothing, on purpose.")
 
     fails = n_failed(t)
     if n_writes(t):
@@ -534,19 +531,19 @@ def event_story(t):
 def detail(t):
     ev = events.get(t["event_id"])
     st.button("← All events", key="back", on_click=clear_sel, type="tertiary")
-    status = (C.tone_pill(P, "escalated", "warn", True) if t["escalations"]
+    status = (C.tone_pill(P, "sent to a person", "warn", True) if t["escalations"]
               else C.tone_pill(P, "no action", "ok") if not t["execution"] else "")
     pills = "".join(C.type_pill(P, x) for x in types_of(t)) + status
     st.html(
         '<div class="rp-card rp-stack">'
-        + title(t["event_id"], pills)
+        + title(f"Message {t['event_id']}", pills)
         + f'<div class="rp-sub">{esc(t["received_at"].replace("T", " "))} · {esc(t["source"])}</div>'
         + (f'<div class="rp-quote">{esc(ev["text"])}</div>' if ev else "")
         + event_story(t) + "</div>")
-    st.html(C.stats([(len(t["incidents"]), "incidents", None), (n_writes(t), "confirmed writes", None),
-                     (len(kinds(t)), "kinds of action", None),
+    st.html(C.stats([(len(t["incidents"]), "problems in this message", None), (n_writes(t), "changes made", None),
+                     (len(kinds(t)), "types of action", None),
                      (n_failed(t), "failed or blocked", "bad" if n_failed(t) else "ok")]))
-    tu, ti, tx = st.tabs(["1 · Event understanding", "2 · Impact and policy", "3 · Execution and outcome"])
+    tu, ti, tx = st.tabs(["1 · What we understood", "2 · What it affected, and why", "3 · What we did"])
     with tu:
         tab_understanding(t)
     with ti:
@@ -629,8 +626,8 @@ def page_review():
                     + (f'<div class="rp-quote">{esc(events[t["event_id"]]["text"])}</div>' if t["event_id"] in events else "")
                     + body
                     + (C.callout("warn", "<b>Unresolved:</b> " + "; ".join(esc(x) for x in unres)) if unres else "")
-                    + C.stats([(len(writes), "operational writes", "ok" if not writes else "bad"),
-                               (len(t["execution"]), "tool calls", None)])
+                    + C.stats([(len(writes), "changes made", "ok" if not writes else "bad"),
+                               (len(t["execution"]), "actions (the hand-off)", None)])
                     + "</div>")
                 st.button(f"Open {t['event_id']}", key=f"rev_{safe(t['event_id'])}", on_click=select,
                           args=(t["event_id"],))
@@ -642,28 +639,32 @@ def page_audit():
         if not log_exists:
             st.html(C.callout("bad", f"<b>Official log missing.</b> No action_log.jsonl in {esc(args.run)}."))
         elif SAME:
-            st.html(C.callout("ok", f"<b>Client record matches the organizer log row for row</b> ({len(log)} rows)."))
+            st.html(C.callout("ok", f"<b>Our record matches the organizers' official log exactly</b> "
+                                    f"({len(log)} actions, same order)."))
         elif log and calls:
-            st.html(C.callout("bad", "<b>Client record and organizer log differ.</b>"))
+            st.html(C.callout("bad", "<b>Our record and the organizers' official log differ.</b>"))
         st.html(C.stats([
-            (len(log), "logged calls", None),
-            (TOT["log_failed"], "failed (ok: false)", "ok" if not TOT["log_failed"] else "bad"),
-            (sum(1 for r in calls if r["kind"] == "write"), "writes", None),
-            (sum(1 for r in calls if r["status"] == "unknown"), "timeouts", None)]))
+            (len(log), "actions in the official log", None),
+            (TOT["log_failed"], "failed", "ok" if not TOT["log_failed"] else "bad"),
+            (sum(1 for r in calls if r["kind"] == "write"), "changes made", None),
+            (sum(1 for r in calls if r["status"] == "unknown"), "no reply", None)]))
         if not calls:
             st.html('<div class="rp-note">No client_calls.jsonl in this run folder.</div>')
             return
         f1, f2 = st.columns(2)
-        ev_f = f1.multiselect("Events", sorted(by_id), default=[])
-        tool_f = f2.multiselect("Tools", sorted({r["tool"] for r in calls}), default=[])
+        ev_f = f1.multiselect("Message", sorted(by_id), default=[], placeholder="All messages")
+        tool_f = f2.multiselect("Action", sorted({r["tool"] for r in calls}, key=L.tool_label), default=[],
+                                placeholder="All actions", format_func=L.tool_label)
         rows = [r for r in calls if (not ev_f or r["event_id"] in ev_f) and (not tool_f or r["tool"] in tool_f)]
-        df = pd.DataFrame([{"seq": r["seq"], "event": r["event_id"], "status": r["status"], "tool": r["tool"],
-                            "agent": r.get("agent"), "incidents": ", ".join(r.get("incidents") or []),
-                            "args": json.dumps(r["args"])[:200], "ms": r.get("ms")} for r in rows])
+        df = pd.DataFrame([{"#": r["seq"], "Message": r["event_id"],
+                            "Result": L.outcome(r["tool"], r.get("body"), r["status"]),
+                            "Action": L.tool_label(r["tool"]), "Details": L.describe(r["tool"], r["args"]),
+                            "Done by": r.get("agent"), "Time (ms)": r.get("ms"), "System tool": r["tool"]}
+                           for r in rows])
         if len(df):
             st.dataframe(df, hide_index=True, width="stretch", height=520)
         else:
-            st.html('<div class="rp-note">No calls match.</div>')
+            st.html('<div class="rp-note">No actions match.</div>')
 
 
 def page_graph():
@@ -678,7 +679,7 @@ def page_graph():
             st.html(legend(P, types, derived=True))
             st.graphviz_chart(ontology_dot(P, onto, g), width="content")
         st.html(C.table(
-            [("Edge type", ""), ("From", ""), ("To", ""), ("Count", "num")],
+            [("Link", ""), ("From", ""), ("To", ""), ("How many", "num")],
             [[esc(k.lower().replace("_", " ")), esc(v["src"]), esc(v["dst"]), f'{g.get("edges", {}).get(k, 0):,}']
              for k, v in onto["edge_types"].items()]))
 
@@ -686,27 +687,27 @@ def page_graph():
 def page_summary():
     with st.container(key="page_summary"):
         st.html(title("Run summary") + '<div style="height:14px"></div>'
-                + C.stats([(TOT["events"], "events", None), (TOT["writes"], "confirmed writes", None),
-                           (TOT["failed"], "failed calls", "ok" if not TOT["failed"] else "bad"),
-                           (TOT["escalated"], "escalations", "warn" if TOT["escalated"] else None),
-                           (TOT["noise"], "noise, 0 calls", None)]))
+                + C.stats([(TOT["events"], "messages", None), (TOT["writes"], "changes made", None),
+                           (TOT["failed"], "failed actions", "ok" if not TOT["failed"] else "bad"),
+                           (TOT["escalated"], "sent to a person", "warn" if TOT["escalated"] else None),
+                           (TOT["noise"], "junk ignored", None)]))
         c1, c2 = st.columns([3, 2], gap="large")
         with c1:
             rows = []
             for t in traces:
                 ex = t["execution"]
-                esc_pill = C.tone_pill(P, "escalated", "warn", True) if t["escalations"] else ""
+                esc_pill = C.tone_pill(P, "sent to a person", "warn", True) if t["escalations"] else ""
                 rows.append(
                     f'<div class="rp-li"><div class="id">{esc(t["event_id"])}</div>'
                     f'<div class="rp-row">{"".join(C.type_pill(P, x) for x in types_of(t))}{esc_pill}</div>'
-                    f'<div class="nums"><span><b>{n_writes(t)}</b> writes</span>'
-                    f'<span><b>{sum(1 for r in ex if r["kind"] == "read")}</b> reads</span>'
+                    f'<div class="nums"><span><b>{n_writes(t)}</b> changes</span>'
+                    f'<span><b>{sum(1 for r in ex if r["kind"] == "read")}</b> look-ups</span>'
                     f'<span><b>{n_failed(t)}</b> failed</span></div></div>')
-            st.html(f'<div class="rp-stack" style="gap:10px">{C.section("Per event")}'
+            st.html(f'<div class="rp-stack" style="gap:10px">{C.section("Each message")}'
                     f'<div class="rp-list">{"".join(rows)}</div></div>')
         with c2:
-            tc = Counter(r["tool"] for r in calls if r["status"] == "confirmed")
-            st.html(f'<div class="rp-stack" style="gap:10px">{C.section("Calls per tool")}'
+            tc = Counter(L.tool_label(r["tool"]) for r in calls if r["status"] == "confirmed")
+            st.html(f'<div class="rp-stack" style="gap:10px">{C.section("Actions taken")}'
                     f'<div class="rp-card">{C.bars(tc.most_common())}</div></div>')
 
 

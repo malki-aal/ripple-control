@@ -313,14 +313,8 @@ def feed_card(t, selected):
 
 def tab_understanding(t):
     u = t.get("understanding") or {}
-    agree = (u.get("cross_check") or {}).get("agree")
-    st.html('<div class="rp-row">'
-            + C.tone_pill(P, f"Extractor {u.get('extractor')}", "primary")
-            + (C.tone_pill(P, "LLM and rules agree", "ok") if agree else
-               C.tone_pill(P, "LLM and rules disagree", "warn") if agree is False else "")
-            + "</div>"
-            + (C.callout("warn", f"<b>Language model failed; rules were used.</b> {esc(u['fallback'])}")
-               if u.get("fallback") else ""))
+    if u.get("fallback"):  # only shown when the language model failed and rules were used instead
+        st.html(C.callout("warn", f"<b>Language model failed; rules were used.</b> {esc(u['fallback'])}"))
     for e in t["incidents"]:
         inc = e["incident"]
         with st.container(key=f"card_u_{safe(inc['incident_id'])}"):

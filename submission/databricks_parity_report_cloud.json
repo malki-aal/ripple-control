@@ -1,0 +1,276 @@
+{
+  "snapshot_id": "9b1551f5b55378ef",
+  "on_databricks": true,
+  "edge_counts": {
+    "DEALER_HAS_LOANER_POOL": 50,
+    "PART_IN_MODEL": 47,
+    "PLANT_BUILDS_MODEL": 18,
+    "SUPPLIES_SHIPMENT": 364,
+    "SHIPMENT_OF_PART": 364,
+    "SHIPMENT_TO_PLANT": 364,
+    "PLANT_SCHEDULES_ORDER": 540,
+    "ORDER_OF_MODEL": 540,
+    "ORDER_FULFILLS_CO": 3263,
+    "CO_AT_DEALER": 3263,
+    "CO_FOR_CUSTOMER": 3263,
+    "ORDER_PRODUCED_VEHICLE": 5348,
+    "VEHICLE_AT_DEALER": 5348,
+    "VEHICLE_OWNED_BY": 2927,
+    "SUPPLIES_LOT": 364,
+    "LOT_OF_PART": 364,
+    "LOT_AT_PLANT": 364,
+    "LOT_USED_IN_ORDER": 1410
+  },
+  "node_counts": {
+    "Plant": 6,
+    "Model": 6,
+    "Part": 20,
+    "Supplier": 18,
+    "Dealer": 50,
+    "LoanerPool": 50,
+    "Customer": 7000,
+    "Shipment": 364,
+    "ProductionOrder": 540,
+    "CustomerOrder": 3263,
+    "Vehicle": 5348,
+    "Lot": 364
+  },
+  "validation": {
+    "unique_key:plants.plant_id": {
+      "duplicates": 0,
+      "nulls": 0,
+      "ok": true
+    },
+    "unique_key:models.model": {
+      "duplicates": 0,
+      "nulls": 0,
+      "ok": true
+    },
+    "unique_key:parts.part_id": {
+      "duplicates": 0,
+      "nulls": 0,
+      "ok": true
+    },
+    "unique_key:suppliers.supplier_id": {
+      "duplicates": 0,
+      "nulls": 0,
+      "ok": true
+    },
+    "unique_key:dealers.dealer_id": {
+      "duplicates": 0,
+      "nulls": 0,
+      "ok": true
+    },
+    "unique_key:customers.customer_id": {
+      "duplicates": 0,
+      "nulls": 0,
+      "ok": true
+    },
+    "unique_key:inbound_shipments.shipment_id": {
+      "duplicates": 0,
+      "nulls": 0,
+      "ok": true
+    },
+    "unique_key:production_orders.production_order_id": {
+      "duplicates": 0,
+      "nulls": 0,
+      "ok": true
+    },
+    "unique_key:customer_orders.customer_order_id": {
+      "duplicates": 0,
+      "nulls": 0,
+      "ok": true
+    },
+    "unique_key:finished_vehicles.vin": {
+      "duplicates": 0,
+      "nulls": 0,
+      "ok": true
+    },
+    "unique_key:part_lots.lot_id": {
+      "duplicates": 0,
+      "nulls": 0,
+      "ok": true
+    },
+    "edge_endpoint_exists:src": {
+      "missing": 0,
+      "examples": [],
+      "ok": true
+    },
+    "edge_endpoint_exists:dst": {
+      "missing": 0,
+      "examples": [],
+      "ok": true
+    },
+    "orphan:bom.model -> models": {
+      "rows": 0,
+      "ok": true
+    },
+    "orphan:bom.part_id -> parts": {
+      "rows": 0,
+      "ok": true
+    },
+    "orphan:plant_models -> plants/models": {
+      "rows": 0,
+      "ok": true
+    },
+    "orphan:shipment.supplier_id": {
+      "rows": 0,
+      "ok": true
+    },
+    "orphan:shipment.part_id": {
+      "rows": 0,
+      "ok": true
+    },
+    "orphan:shipment.plant_id": {
+      "rows": 0,
+      "ok": true
+    },
+    "orphan:shipment part not in any model built at plant": {
+      "rows": 0,
+      "ok": true
+    },
+    "orphan:lot.supplier/part/plant": {
+      "rows": 0,
+      "ok": true
+    },
+    "orphan:lot with no derived order": {
+      "rows": 0,
+      "ok": true
+    },
+    "orphan:customer_order.production_order_id": {
+      "rows": 0,
+      "ok": true
+    },
+    "orphan:vehicle.production_order_id": {
+      "rows": 0,
+      "ok": true
+    },
+    "orphan:sold vehicle without customer": {
+      "rows": 0,
+      "ok": true
+    }
+  },
+  "validation_ok": true,
+  "impact_checks": {
+    "delay": {
+      "shipment": "SH-0182",
+      "new_eta": "2027-03-18",
+      "affected_orders": [
+        "PO-0316",
+        "PO-0319",
+        "PO-0322"
+      ],
+      "customer_orders": 26
+    },
+    "quality": {
+      "lot": "LOT-0191",
+      "orders": [
+        "ProductionOrder:PO-0289",
+        "ProductionOrder:PO-0291",
+        "ProductionOrder:PO-0292",
+        "ProductionOrder:PO-0294"
+      ],
+      "in_stock": 40,
+      "sold": 76
+    }
+  },
+  "parity": {
+    "snapshot_local": "9b1551f5b55378ef",
+    "snapshot_databricks": "9b1551f5b55378ef",
+    "nodes": {
+      "local": 17029,
+      "databricks": 17029,
+      "only_local": 0,
+      "only_databricks": 0
+    },
+    "edges": {
+      "local": 28201,
+      "databricks": 28201,
+      "only_local": 0,
+      "only_databricks": 0
+    },
+    "provenance_mismatches": 0,
+    "edge_counts_by_type": {
+      "CO_AT_DEALER": {
+        "databricks": 3263,
+        "local": 3263
+      },
+      "CO_FOR_CUSTOMER": {
+        "databricks": 3263,
+        "local": 3263
+      },
+      "DEALER_HAS_LOANER_POOL": {
+        "databricks": 50,
+        "local": 50
+      },
+      "LOT_AT_PLANT": {
+        "databricks": 364,
+        "local": 364
+      },
+      "LOT_OF_PART": {
+        "databricks": 364,
+        "local": 364
+      },
+      "LOT_USED_IN_ORDER": {
+        "databricks": 1410,
+        "local": 1410
+      },
+      "ORDER_FULFILLS_CO": {
+        "databricks": 3263,
+        "local": 3263
+      },
+      "ORDER_OF_MODEL": {
+        "databricks": 540,
+        "local": 540
+      },
+      "ORDER_PRODUCED_VEHICLE": {
+        "databricks": 5348,
+        "local": 5348
+      },
+      "PART_IN_MODEL": {
+        "databricks": 47,
+        "local": 47
+      },
+      "PLANT_BUILDS_MODEL": {
+        "databricks": 18,
+        "local": 18
+      },
+      "PLANT_SCHEDULES_ORDER": {
+        "databricks": 540,
+        "local": 540
+      },
+      "SHIPMENT_OF_PART": {
+        "databricks": 364,
+        "local": 364
+      },
+      "SHIPMENT_TO_PLANT": {
+        "databricks": 364,
+        "local": 364
+      },
+      "SUPPLIES_LOT": {
+        "databricks": 364,
+        "local": 364
+      },
+      "SUPPLIES_SHIPMENT": {
+        "databricks": 364,
+        "local": 364
+      },
+      "VEHICLE_AT_DEALER": {
+        "databricks": 5348,
+        "local": 5348
+      },
+      "VEHICLE_OWNED_BY": {
+        "databricks": 2927,
+        "local": 2927
+      }
+    },
+    "examples_only_local": [],
+    "examples_only_databricks": [],
+    "status": "MATCH"
+  },
+  "published_rows": {
+    "entity_keys": 17029,
+    "graph_nodes": 17029,
+    "graph_edges": 28201
+  }
+}

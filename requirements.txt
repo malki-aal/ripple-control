@@ -1,0 +1,5 @@
+# core judged run (laptop only)
+networkx>=3.0
+# control tower UI
+streamlit>=1.40
+pandas>=2.0

@@ -1,0 +1,95 @@
+{
+  "schema_version": "ripple-graph/1.0",
+  "edge_types": {
+    "SUPPLIES_SHIPMENT": {
+      "src": "Supplier",
+      "dst": "Shipment",
+      "meaning": "supplier sends an inbound shipment"
+    },
+    "SHIPMENT_OF_PART": {
+      "src": "Shipment",
+      "dst": "Part",
+      "meaning": "shipment carries a part"
+    },
+    "SHIPMENT_TO_PLANT": {
+      "src": "Shipment",
+      "dst": "Plant",
+      "meaning": "shipment is received at a plant"
+    },
+    "PART_IN_MODEL": {
+      "src": "Part",
+      "dst": "Model",
+      "meaning": "bill of materials: model requires part"
+    },
+    "PLANT_BUILDS_MODEL": {
+      "src": "Plant",
+      "dst": "Model",
+      "meaning": "plant is able to build the model"
+    },
+    "PLANT_SCHEDULES_ORDER": {
+      "src": "Plant",
+      "dst": "ProductionOrder",
+      "meaning": "order is built at the plant"
+    },
+    "ORDER_OF_MODEL": {
+      "src": "ProductionOrder",
+      "dst": "Model",
+      "meaning": "order builds this model"
+    },
+    "ORDER_FULFILLS_CO": {
+      "src": "ProductionOrder",
+      "dst": "CustomerOrder",
+      "meaning": "customer order is filled by the build"
+    },
+    "CO_AT_DEALER": {
+      "src": "CustomerOrder",
+      "dst": "Dealer",
+      "meaning": "customer order placed through dealer"
+    },
+    "CO_FOR_CUSTOMER": {
+      "src": "CustomerOrder",
+      "dst": "Customer",
+      "meaning": "customer order belongs to customer"
+    },
+    "SUPPLIES_LOT": {
+      "src": "Supplier",
+      "dst": "Lot",
+      "meaning": "supplier produced the part lot"
+    },
+    "LOT_OF_PART": {
+      "src": "Lot",
+      "dst": "Part",
+      "meaning": "lot is a lot of this part"
+    },
+    "LOT_AT_PLANT": {
+      "src": "Lot",
+      "dst": "Plant",
+      "meaning": "lot was installed at the plant"
+    },
+    "LOT_USED_IN_ORDER": {
+      "src": "Lot",
+      "dst": "ProductionOrder",
+      "meaning": "DERIVED: same plant, build date in lot window, model BOM has part"
+    },
+    "ORDER_PRODUCED_VEHICLE": {
+      "src": "ProductionOrder",
+      "dst": "Vehicle",
+      "meaning": "finished vehicle came from the build"
+    },
+    "VEHICLE_AT_DEALER": {
+      "src": "Vehicle",
+      "dst": "Dealer",
+      "meaning": "vehicle is allocated to dealer"
+    },
+    "VEHICLE_OWNED_BY": {
+      "src": "Vehicle",
+      "dst": "Customer",
+      "meaning": "sold vehicle owner"
+    },
+    "DEALER_HAS_LOANER_POOL": {
+      "src": "Dealer",
+      "dst": "LoanerPool",
+      "meaning": "dealer's loaner pool"
+    }
+  }
+}

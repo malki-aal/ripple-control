@@ -1,0 +1,5 @@
+# OPTIONAL analytics workflow only. Not needed for the judged run.
+snowflake-connector-python>=3.12
+databricks-sql-connector>=3.4
+# local rehearsal of the Databricks notebook (needs Java 17/21)
+pyspark==4.0.1

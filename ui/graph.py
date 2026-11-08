@@ -6,10 +6,12 @@ labels stay inside their boxes. Derived edges (lot to order) are dashed.
 """
 from collections import defaultdict
 
+from .labels import plain
 from .theme import FONT_STACK
 
 LEAF = {"CustomerOrder", "Customer", "Dealer", "Vehicle"}
-NICE = {"ProductionOrder": "Production order", "CustomerOrder": "Customer order", "LoanerPool": "Loaner pool"}
+NICE = {"ProductionOrder": "Car build", "CustomerOrder": "Customer order", "LoanerPool": "Loaner pool",
+        "Lot": "Parts batch", "Model": "Car model"}
 
 
 def ntype(k):
@@ -38,7 +40,11 @@ def _q(s):
 def _label(t, main, sub=None):
     """Plain multi-line label: every line is drawn centered on the box (HTML-like labels drift off center
     because Graphviz measures text with different font metrics than the browser)."""
-    lines = [NICE.get(t, t).upper(), str(main)] + ([str(sub)] if sub else [])
+    main = str(main)
+    if len(main) > 20 and " " in main and not sub:  # long plain names wrap onto two centered lines
+        cut = main.rfind(" ", 0, len(main) // 2 + 4)
+        main = main[:cut] + "\n" + main[cut + 1:] if cut > 0 else main
+    lines = [NICE.get(t, t).upper(), *main.split("\n")] + ([str(sub)] if sub else [])
     clean = [x.replace("\\", "/").replace('"', "'") for x in lines]
     return '"' + "\\n".join(clean) + '"'
 
@@ -87,8 +93,8 @@ def dot_graph(P, edges, focus_po=None, meanings=None, vehicle_status=None):
         if not focus_po and ntype(d) in LEAF:
             groups[(s, ntype(d))].add(d)
             continue
-        nodes[s] = (ntype(s), _label(ntype(s), nid(s)))
-        nodes[d] = (ntype(d), _label(ntype(d), nid(d)))
+        nodes[s] = (ntype(s), _label(ntype(s), plain(nid(s))))
+        nodes[d] = (ntype(d), _label(ntype(d), plain(nid(d))))
         if (s, d, e["etype"]) not in seen:
             seen.add((s, d, e["etype"]))
             tip = e["etype"].lower().replace("_", " ") + (": " + meanings[e["etype"]] if e["etype"] in meanings else "")
@@ -103,10 +109,10 @@ def dot_graph(P, edges, focus_po=None, meanings=None, vehicle_status=None):
             sold = sum(1 for m in members if vehicle_status.get(nid(m)) == "sold")
             sub = f"{sold} sold · {len(members) - sold} in stock"
         elif len(members) <= 3:
-            sub = ", ".join(sorted(nid(m) for m in members))
+            sub = ", ".join(sorted(plain(nid(m)) for m in members)) if len(members) <= 2 else None
         nodes[g] = (t, _label(t, f"{len(members)} {word}", sub))
-        tall = tall or bool(sub)
         lines.append(f"{_q(parent)} -> {_q(g)} [tooltip={_q('grouped ' + word)}];")
+    tall = any(lab.count("\\n") >= 2 for _, lab in nodes.values())
     out = _header(P, nodesep=0.2, ranksep=0.4) + [_node(P, n, t, lab, tall, w=2.0, h=0.7)
                                                     for n, (t, lab) in nodes.items()]
     return "\n".join(out + lines + ["}"])

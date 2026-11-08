@@ -150,7 +150,7 @@ html, body, .stApp, .stApp *:not([data-testid="stIconMaterial"]) {{ font-family:
 .rp-li {{ display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center;
   padding: 12px 16px; border-bottom: 1px solid var(--rule); }}
 .rp-li:last-child {{ border-bottom: 0; }}
-.rp-li .id {{ font-size: 16px; font-weight: 700; width: 52px; flex: none; }}
+.rp-li .id {{ font-size: 16px; font-weight: 700; width: 110px; flex: none; }}
 .rp-li .rp-row {{ flex: 1 1 160px; min-width: 0; }}
 .rp-li .nums {{ display: flex; gap: 14px; font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums;
   white-space: nowrap; margin-left: auto; }}

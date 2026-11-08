@@ -6,7 +6,6 @@ Reads only recorded run artifacts (event_traces.jsonl, action_log.jsonl, client_
 similar_incidents.json), so it shows exactly what the agents did. No tool calls are made from the UI.
 """
 import argparse
-import csv
 import datetime
 import json
 import os
@@ -63,24 +62,10 @@ def load(run_dir, events_path):
     return traces, log, os.path.exists(log_path), calls, manifest, onto, events
 
 
-@st.cache_data
-def load_names(data_dir):
-    """Display names for IDs, read from the organizer's reference CSVs (read-only)."""
-    out = {}
-    for fname, key in [("parts.csv", "part_id"), ("plants.csv", "plant_id"), ("suppliers.csv", "supplier_id"),
-                       ("dealers.csv", "dealer_id")]:
-        p = os.path.join(data_dir, fname)
-        if os.path.exists(p):
-            with open(p, encoding="utf-8", newline="") as f:
-                for row in csv.DictReader(f):
-                    out[row[key]] = row.get("name", "")
-    return out
-
-
 # ============================================================================ data
 args = parse_args()
 traces, log, log_exists, calls, manifest, onto, events = load(args.run, args.events)
-NAMES = load_names(os.path.dirname(os.path.abspath(args.events)))
+L.load_reference_names(os.path.dirname(os.path.abspath(args.events)))
 SIM = load_similar(args.run, args.similar)
 MEANINGS = {k: v.get("meaning", "") for k, v in (onto.get("edge_types") or {}).items()}
 
@@ -92,8 +77,13 @@ by_id = {t["event_id"]: t for t in traces}
 
 
 def name(i):
-    n = NAMES.get(i)
-    return f"{esc(i)} <span class='rp-sub'>· {esc(n)}</span>" if n else esc(i)
+    """Plain name for a coded ID (no prefixes like P_TX or PO-0058 on screen)."""
+    return esc(L.plain(i)) if i else "–"
+
+
+def pt(text):
+    """Escape a sentence after swapping coded IDs and ISO dates for plain words."""
+    return esc(L.plain_text(text))
 
 
 def kinds(t):
@@ -184,21 +174,22 @@ def similar_panel(iid):
             c1, c2 = st.columns([5, 1], vertical_alignment="center")
             c1.html(
                 f'<div class="rp-card rp-stack" style="padding:14px 16px;gap:8px">'
-                f'<div class="rp-head"><div class="rp-row"><span class="rp-h3">{esc(r.get("event_id"))}</span>'
-                f'{C.type_pill(P, r.get("type"))}</div><b>{score:.2f}</b></div>'
-                f'<div class="rp-body"><b>Decision:</b> {esc(r.get("decision"))}</div>'
-                f'<div class="rp-body"><b>Outcome:</b> {esc(r.get("outcome"))}</div>'
-                f'<div class="rp-note">{esc(r.get("why_similar"))}</div></div>')
+                f'<div class="rp-head"><div class="rp-row"><span class="rp-h3">{name(r.get("event_id"))}</span>'
+                f'{C.type_pill(P, r.get("type"))}</div><b>{score:.0%} similar</b></div>'
+                f'<div class="rp-body"><b>Decision:</b> {pt(r.get("decision"))}</div>'
+                f'<div class="rp-body"><b>Outcome:</b> {pt(r.get("outcome"))}</div>'
+                f'<div class="rp-note">{pt(r.get("why_similar"))}</div></div>')
             eid = r.get("event_id")
-            c2.button(f"Open {eid}", key=f"sim_{safe(iid)}_{k}", on_click=select, args=(eid,),
+            c2.button(f"Open {L.plain(eid).lower()}", key=f"sim_{safe(iid)}_{k}", on_click=select, args=(eid,),
                       disabled=eid not in by_id, width="stretch")
 
 
 def moves_table(moves):
-    rows = [[esc(p["production_order_id"]), esc(p["tool"].split(".")[-1]), esc(" ".join(p["from"])),
-             esc(" ".join(p["to"])), esc(p.get("rationale"))] for p in moves]
-    return C.table([("Order", "id"), ("Action", ""), ("From", "id"), ("To", "id"), ("Why", "wrap")], rows,
-                   max_height=380)
+    where = lambda pl_day: f"{name(pl_day[0])}, {esc(L.plain_date(pl_day[1]))}"  # noqa: E731
+    rows = [[name(p["production_order_id"]), esc(L.tool_label(p["tool"])), where(p["from"]), where(p["to"]),
+             pt(p.get("rationale"))] for p in moves]
+    return C.table([("Build", "id"), ("Action", "nowrap"), ("From", "nowrap"), ("To", "nowrap"), ("Why", "wrap")],
+                   rows, max_height=380)
 
 
 def incident_header(e):
@@ -212,16 +203,15 @@ def incident_header(e):
     elif t == "quality_hold":
         lot = imp.get("lot") or ents.get("lot", "?")
         part = (imp.get("evidence") or {}).get("lot", {}).get("part_id") or ents.get("part")
-        head = f"{esc(lot)} <span class='rp-sub'>· {esc(NAMES.get(part, part))}</span>"
+        head = f"{name(lot)} of {name(part)}"
     elif t == "noise":
         head = "No action needed"
     else:
         head = "Escalated to a human"
-    right = (C.type_pill(P, t) + C.tone_pill(P, inc["incident_id"], "primary")
-             + C.tone_pill(P, e.get("agent") or "Coordinator", "primary"))
+    right = C.type_pill(P, t) + C.tone_pill(P, e.get("agent") or "Coordinator", "primary")
     return (f'<div class="rp-head"><div class="rp-h2" style="font-size:22px">{head}</div>'
             f'<div class="rp-row">{right}</div></div>'
-            f'<div class="rp-body"><b>Decision:</b> {esc(e.get("decision"))}</div>')
+            f'<div class="rp-body"><b>Decision:</b> {pt(e.get("decision"))}</div>')
 
 
 def incident_facts(e):
@@ -232,24 +222,26 @@ def incident_facts(e):
         sh = ev.get("shipment") or {}
         return C.facts([
             ("Supplier", name(ents.get("supplier"))), ("Plant", name(ents.get("plant"))),
-            ("Shipment", esc(sh.get("shipment_id"))), ("ETA", f"{esc(d.get('original_eta'))} → {esc(d.get('new_eta'))}"),
-            ("Blocked window", esc(ev.get("window"))), ("Recovery", esc(ev.get("recovery_date"))),
-            ("Models", esc(", ".join(ev.get("models_needing_part") or []))),
+            ("Shipment", name(sh.get("shipment_id"))),
+            ("Arrival", f"{esc(L.plain_date(d.get('original_eta')))} → {esc(L.plain_date(d.get('new_eta')))}"),
+            ("Blocked days", pt(", ".join(ev.get("blocked_days") or []))), ("Back on", pt(ev.get("recovery_date"))),
+            ("Car models", esc(", ".join(L.plain(m) for m in ev.get("models_needing_part") or []))),
         ])
     if t == "plant_outage":
         return C.facts([
-            ("Plant", name(ents.get("plant"))), ("Outage", esc(ev.get("window"))),
-            ("Restart", esc(ev.get("recovery_date"))),
+            ("Plant", name(ents.get("plant"))), ("Down", pt(", ".join(ev.get("blocked_days") or []))),
+            ("Restarts", pt(ev.get("recovery_date"))),
         ])
     if t == "quality_hold":
         lot = ev.get("lot") or {}
         return C.facts([
             ("Part", name(lot.get("part_id"))), ("Supplier", name(lot.get("supplier_id"))),
             ("Plant", name(lot.get("plant_id"))),
-            ("Build window", f"{esc(lot.get('first_build_date'))} → {esc(lot.get('last_build_date'))}"),
-            ("Models", esc(", ".join(ev.get("models_using_part") or []))),
+            ("Cars built", f"{esc(L.plain_date(lot.get('first_build_date')))} → "
+                           f"{esc(L.plain_date(lot.get('last_build_date')))}"),
+            ("Car models", esc(", ".join(L.plain(m) for m in ev.get("models_using_part") or []))),
         ])
-    return C.facts([(k.replace("_", " ").capitalize(), esc(v if not isinstance(v, (dict, list)) else C.short_json(v, 120)))
+    return C.facts([(k.replace("_", " ").capitalize(), pt(v if not isinstance(v, (dict, list)) else C.short_json(v, 120)))
                     for k, v in ev.items()])
 
 
@@ -266,17 +258,16 @@ def quality_block(e):
         rows = sorted(stop.items(), key=lambda kv: (-len(kv[1]), kv[0]))
         st.html(f'<div class="rp-stack" style="gap:10px">{C.section("Stop-sale by dealer")}'
                 + C.table([("Dealer", "id"), ("Vehicles", "num"), ("VINs", "small")],
-                          [[f"{esc(d)}<div class='rp-sub'>{esc(NAMES.get(d, ''))}</div>", len(v), esc(", ".join(v))]
-                           for d, v in rows], max_height=340) + "</div>")
+                          [[name(d), len(v), esc(", ".join(v))] for d, v in rows], max_height=340) + "</div>")
     with cr:
         st.html(f'<div class="rp-stack" style="gap:10px">{C.section("Owners contacted")}'
                 + C.table([("Customer", "id"), ("Vehicles", "num"), ("VINs", "small")],
-                          [[esc(c), len(v), esc(", ".join(v))] for c, v in sorted(owners.items())], max_height=340)
+                          [[name(c), len(v), esc(", ".join(v))] for c, v in sorted(owners.items())], max_height=340)
                 + "</div>")
     with st.expander(f"All {len(veh)} vehicles"):
-        st.html(C.table([("VIN", "id"), ("Status", ""), ("Dealer", "id"), ("Production order", "id")],
+        st.html(C.table([("VIN", "id"), ("Status", ""), ("Dealer", "nowrap"), ("Build", "id")],
                         [[esc(v.get("vin")), C.tone_pill(P, "sold", "primary") if v.get("status") == "sold"
-                          else C.tone_pill(P, "in stock", "warn"), esc(v.get("dealer_id")), esc(v.get("po"))]
+                          else C.tone_pill(P, "in stock", "warn"), name(v.get("dealer_id")), name(v.get("po"))]
                          for v in veh], max_height=420))
 
 
@@ -306,7 +297,7 @@ def feed_card(t, selected):
         foot.append(C.tone_pill(P, "ignored", "ok"))
     if n_failed(t):
         foot.append(C.tone_pill(P, f"{n_failed(t)} failed", "bad"))
-    return (f'<div class="rp-feed{" sel" if selected else ""}"><div class="top"><span class="id">{esc(t["event_id"])}</span>'
+    return (f'<div class="rp-feed{" sel" if selected else ""}"><div class="top"><span class="id">{name(t["event_id"])}</span>'
             f'<span class="meta">{esc(t["received_at"][11:16])} · {esc(t["source"])}</span></div>'
             f'<div class="types">{pills}</div><div class="foot">{"".join(f"<span>{x}</span>" for x in foot)}</div></div>')
 
@@ -319,26 +310,27 @@ def tab_understanding(t):
         inc = e["incident"]
         with st.container(key=f"card_u_{safe(inc['incident_id'])}"):
             out = [f'<div class="rp-head"><div class="rp-h2">{esc(TYPE_LABEL.get(inc["type"], inc["type"]))}</div>'
-                   f'<div class="rp-row">{C.tone_pill(P, inc["incident_id"], "primary")}'
+                   f'<div class="rp-row">'
                    + (C.tone_pill(P, "confirmed", "ok") if inc["confirmed"] else C.tone_pill(P, "unconfirmed", "warn", True))
                    + "</div></div>",
                    f'<div class="rp-quote">{esc(inc.get("evidence_span"))}</div>']
             ents = inc.get("entity_evidence") or []
             if ents:
-                out.append(C.section("Names"))
-                out.append(C.table([("Phrase", ""), ("Resolved", "id"), ("Type", ""), ("Matched via", "")],
+                out.append(C.section("Names we recognised"))
+                out.append(C.table([("In the message", ""), ("Means", "nowrap"), ("Kind", "")],
                                    [[f"“{esc(x.get('phrase'))}”", name(x.get("id")) if x.get("id") else "–",
-                                     esc(x.get("type")), esc(x.get("source"))] for x in ents]))
+                                     esc(str(x.get("type", "")).capitalize())] for x in ents]))
             dates = inc.get("dates") or {}
             if dates:
-                out.append(C.section("Dates"))
-                out.append(C.table([("Phrase", ""), ("Date", "id"), ("Role", ""), ("Rule", "wrap")],
+                out.append(C.section("Dates we worked out"))
+                out.append(C.table([("In the message", ""), ("Date", "nowrap"), ("Meaning", "")],
                                    [[f"“{esc(v.get('phrase'))}”",
-                                     esc(v["value"]) if v.get("value") else C.tone_pill(P, "not resolved", "warn", True),
-                                     esc(k.replace("_", " ")), esc(v.get("rule"))]
+                                     esc(L.plain_date(v["value"])) if v.get("value")
+                                     else C.tone_pill(P, "unclear", "warn", True),
+                                     esc(k.replace("_", " ").replace("eta", "arrival").capitalize())]
                                     for k, v in dates.items()]))
             if inc.get("unresolved"):
-                out.append(C.callout("warn", "<b>Needs a human check:</b> " + "; ".join(esc(x) for x in inc["unresolved"])))
+                out.append(C.callout("warn", "<b>Needs a human check:</b> " + "; ".join(pt(x) for x in inc["unresolved"])))
             st.html('<div class="rp-stack">' + "".join(out) + "</div>")
 
 
@@ -352,38 +344,39 @@ def tab_impact(t):
             st.html('<div class="rp-stack" style="gap:10px">' + incident_header(e)
                     + C.policy_lines((imp or {}).get("policy", e.get("policy", []))) + "</div>")
             if not imp:
-                st.html(C.callout("ok" if inc["type"] == "noise" else "warn", esc(e.get("reason", ""))))
+                st.html(C.callout("ok" if inc["type"] == "noise" else "warn", pt(e.get("reason", ""))))
                 similar_panel(iid)
                 continue
             if imp.get("unresolved"):
-                st.html(C.callout("warn", "<b>Unresolved:</b> " + "; ".join(esc(x) for x in imp["unresolved"])))
+                st.html(C.callout("warn", "<b>Unresolved:</b> " + "; ".join(pt(x) for x in imp["unresolved"])))
             st.html(incident_facts(e))
             if imp.get("status") == "actionable":
                 edges = incident_edges(t, e)
                 pos = imp.get("affected_pos") or sorted({nid(x["dst"]) for x in edges if x["etype"] == "LOT_USED_IN_ORDER"})
-                focus = st.selectbox("Graph focus", ["All orders"] + pos, key=f"f{safe(iid)}")
+                focus = st.selectbox("Show", ["All builds"] + pos, key=f"f{safe(iid)}",
+                                     format_func=lambda v: v if v == "All builds" else L.plain(v))
                 vstat = {v["vin"]: v.get("status") for v in imp.get("vehicles") or []}
                 kept = sorted({ntype(x) for ed in edges for x in (ed["src"], ed["dst"])})
                 st.html(legend(P, kept, derived=any(x.get("derived") for x in edges)))
-                st.graphviz_chart(dot_graph(P, edges, None if focus == "All orders" else focus, MEANINGS, vstat),
+                st.graphviz_chart(dot_graph(P, edges, None if focus == "All builds" else focus, MEANINGS, vstat),
                                   width="content")
-                with st.expander("Edge evidence"):
-                    st.html(C.table([("Edge type", ""), ("From", "id"), ("To", "id"), ("Source table", ""),
-                                     ("Record key", "id")],
-                                    [[esc(x["etype"].lower()) + (" (derived)" if x.get("derived") else ""),
-                                      esc(x["src"]), esc(x["dst"]), esc(x.get("source_table")), esc(x.get("source_key"))]
+                with st.expander("Where each link comes from"):
+                    node = lambda k: esc(L.plain(nid(k)))  # noqa: E731
+                    st.html(C.table([("Link", ""), ("From", "nowrap"), ("To", "nowrap"), ("Data file", "")],
+                                    [[esc(x["etype"].lower().replace("_", " ")) + (" (worked out)" if x.get("derived") else ""),
+                                      node(x["src"]), node(x["dst"]), esc(x.get("source_table"))]
                                      for x in edges], max_height=420))
             if inc["type"] == "quality_hold":
                 quality_block(e)
             mine = [p for p in moves_all if iid in p.get("incidents", [])]
             used.update(id(p) for p in mine)
             if mine:
-                st.html(f'<div class="rp-stack" style="gap:10px">{C.section("Slot decisions")}{moves_table(mine)}</div>')
+                st.html(f'<div class="rp-stack" style="gap:10px">{C.section("Where each build moved")}{moves_table(mine)}</div>')
             similar_panel(iid)
     rest = [p for p in moves_all if id(p) not in used]
     if rest:
         with st.container(key=f"card_rest_{safe(t['event_id'])}"):
-            st.html(f'<div class="rp-stack" style="gap:10px">{C.section("Other slot decisions")}{moves_table(rest)}</div>')
+            st.html(f'<div class="rp-stack" style="gap:10px">{C.section("Other build moves")}{moves_table(rest)}</div>')
     dp = t.get("dealer_plan") or {}
     loaners = t.get("loaners") or []
     if loaners or dp.get("path"):
@@ -401,12 +394,12 @@ def tab_impact(t):
                 + C.stats([(notified, "dealer notices", None), (got, "loaners assigned", "ok"),
                            (len(miss), "missed out (pool empty)", "warn" if miss else None),
                            (len(std), "Standard tier, notice only", None)])
-                + C.table([("Rank", "num"), ("Dealer", "id"), ("Customer order", "id"), ("Tier", ""), ("Promised", "id"),
-                           ("Loaner", ""), ("Why", "wrap")],
-                          [[esc(x.get("rank")), esc(x.get("dealer_id")), esc(x.get("customer_order_id")), esc(x.get("tier")),
-                            esc(x.get("promised_date")),
+                + C.table([("Priority", "num"), ("Dealer", "nowrap"), ("Customer order", "nowrap"), ("Tier", ""),
+                           ("Promised", "nowrap"), ("Loaner", ""), ("Why", "wrap")],
+                          [[esc(x.get("rank")), name(x.get("dealer_id")), name(x.get("customer_order_id")),
+                            esc(x.get("tier")), esc(L.plain_date(x.get("promised_date"))),
                             C.tone_pill(P, "assigned", "ok") if x.get("assigned") else C.tone_pill(P, "missed out", "warn", True),
-                            esc(x.get("why"))] for x in ordered],
+                            pt(x.get("why"))] for x in ordered],
                           max_height=380, row_class=lambda i: "" if ordered[i].get("assigned") else "miss")
                 + "</div>")
 
@@ -420,7 +413,7 @@ def tab_execution(t):
                      (sum(1 for r in ex if r["kind"] == "escalation"), "sent to a person", None),
                      (bad + len(t["blocked"]), "failed or blocked", "bad" if bad or t["blocked"] else "ok")]))
     if not ex:
-        reason = " ".join(esc(e.get("reason", "")) for e in t["incidents"])
+        reason = " ".join(pt(e.get("reason", "")) for e in t["incidents"])
         st.html(C.callout("ok", f"<b>No actions taken, on purpose.</b> {reason}"))
     else:
         show_reads = st.toggle("Show look-ups too", value=False, key=f"rd{safe(t['event_id'])}")
@@ -432,14 +425,14 @@ def tab_execution(t):
                 [[esc(r["seq"]), C.tone_pill(P, L.outcome(r["tool"], r.get("body"), r["status"]),
                                              "ok" if r["status"] == "confirmed" else "bad"),
                   f"<b>{esc(L.tool_label(r['tool']))}</b>", esc(L.describe(r["tool"], r.get("args"))),
-                  esc(r.get("purpose")), esc(r.get("agent"))] for r in rows],
+                  pt(r.get("purpose")), esc(r.get("agent"))] for r in rows],
                 max_height=520))
         else:
             st.html('<div class="rp-note">Only look-ups for this event.</div>')
     if t["blocked"]:
         st.html(C.callout("bad", "<b>Blocked by validation before sending:</b>") + C.pre_json(t["blocked"]))
     for r in t["escalations"]:
-        st.html(C.callout("warn", f"<b>Escalated:</b> {esc(r)}"))
+        st.html(C.callout("warn", f"<b>Sent to a person:</b> {pt(r)}"))
 
 
 def nice_date(s):
@@ -462,21 +455,21 @@ def event_story(t):
         ents, ev = inc.get("entities") or {}, imp.get("evidence") or {}
         d = {k: (v or {}).get("value") for k, v in (inc.get("dates") or {}).items()}
         n_pos = len(imp.get("affected_pos") or [])
-        nm = lambda i: esc(NAMES.get(i) or i or "?")  # noqa: E731
+        nm = lambda i: esc(L.plain(i) or "?")  # noqa: E731
         if inc["type"] == "supplier_delay":
             happened.append(
                 f"<b>Supplier delay.</b> {nm(ents.get('supplier'))} can't deliver the {nm(ents.get('part'))} "
                 f"to {nm(ents.get('plant'))} on time: it now arrives {nice_date(d.get('new_eta'))} instead of "
-                f"{nice_date(d.get('original_eta'))}. {plural(n_pos, 'production order')} affected.")
+                f"{nice_date(d.get('original_eta'))}. {plural(n_pos, 'car build')} affected.")
         elif inc["type"] == "plant_outage":
             happened.append(
                 f"<b>Plant outage.</b> {nm(ents.get('plant'))} is down {nice_date(d.get('start'))} to "
                 f"{nice_date(d.get('end'))} and restarts {nice_date(ev.get('recovery_date'))}. "
-                f"{plural(n_pos, 'production order')} affected.")
+                f"{plural(n_pos, 'car build')} affected.")
         elif inc["type"] == "quality_hold":
             lot = ev.get("lot") or {}
             happened.append(
-                f"<b>Quality problem.</b> Lot {esc(lot.get('lot_id') or imp.get('lot'))} of the "
+                f"<b>Quality problem.</b> {nm(lot.get('lot_id') or imp.get('lot'))} of the "
                 f"{nm(lot.get('part_id'))} from {nm(lot.get('supplier_id'))} went into cars built at "
                 f"{nm(lot.get('plant_id'))} from {nice_date(lot.get('first_build_date'))} to "
                 f"{nice_date(lot.get('last_build_date'))}. {ev.get('vehicles_total', '?')} vehicles have it: "
@@ -491,11 +484,11 @@ def event_story(t):
     missed = sum(1 for x in t.get("loaners") or [] if not x.get("assigned"))
     did = []
     if ok["mes.reschedule"]:
-        did.append(f"Moved {plural(ok['mes.reschedule'], 'production order')} to the next open day at the same plant.")
+        did.append(f"Moved {plural(ok['mes.reschedule'], 'car build')} to the next open day at the same plant.")
     if ok["mes.transfer"]:
-        did.append(f"Moved {plural(ok['mes.transfer'], 'production order')} to another plant that builds the model.")
+        did.append(f"Moved {plural(ok['mes.transfer'], 'car build')} to another plant that builds the model.")
     if ok["quality.hold_lot"]:
-        did.append("Put the faulty lot on hold.")
+        did.append("Put the faulty batch of parts on hold.")
     if ok["dealer.stop_sale"]:
         did.append(f"Stopped sale of the unsold cars at {plural(ok['dealer.stop_sale'], 'dealer')}.")
     if ok["dealer.notify"]:
@@ -530,7 +523,7 @@ def detail(t):
     pills = "".join(C.type_pill(P, x) for x in types_of(t)) + status
     st.html(
         '<div class="rp-card rp-stack">'
-        + title(f"Message {t['event_id']}", pills)
+        + title(L.plain(t["event_id"]), pills)
         + f'<div class="rp-sub">{esc(t["received_at"].replace("T", " "))} · {esc(t["source"])}</div>'
         + (f'<div class="rp-quote">{esc(ev["text"])}</div>' if ev else "")
         + event_story(t) + "</div>")
@@ -609,12 +602,12 @@ def page_review():
                     head, _, ask = r.partition("Human should ")
                     checks.append((head.strip(), ask.strip()))
                 body = "".join(
-                    f'<div class="rp-body"><b>Why:</b> {esc(h)}</div>'
-                    + (C.callout("warn", f"<b>To verify:</b> {esc(a)}") if a else "") for h, a in checks)
+                    f'<div class="rp-body"><b>Why:</b> {pt(re.sub(r"^\[E-\d+#\d+\]\s*", "", h))}</div>'
+                    + (C.callout("warn", f"<b>To verify:</b> {pt(a)}") if a else "") for h, a in checks)
                 unres = [x for e in t["incidents"] for x in e["incident"].get("unresolved") or []]
                 st.html(
                     '<div class="rp-stack">'
-                    + f'<div class="rp-head"><div class="rp-h2" style="font-size:22px">{esc(t["event_id"])}</div>'
+                    + f'<div class="rp-head"><div class="rp-h2" style="font-size:22px">{name(t["event_id"])}</div>'
                     f'<div class="rp-row">{"".join(C.type_pill(P, x) for x in types_of(t))}'
                     f'{C.tone_pill(P, "waiting on a human", "warn", True)}</div></div>'
                     + (f'<div class="rp-quote">{esc(events[t["event_id"]]["text"])}</div>' if t["event_id"] in events else "")
@@ -623,7 +616,7 @@ def page_review():
                     + C.stats([(len(writes), "changes made", "ok" if not writes else "bad"),
                                (len(t["execution"]), "actions (the hand-off)", None)])
                     + "</div>")
-                st.button(f"Open {t['event_id']}", key=f"rev_{safe(t['event_id'])}", on_click=select,
+                st.button(f"Open {L.plain(t['event_id']).lower()}", key=f"rev_{safe(t['event_id'])}", on_click=select,
                           args=(t["event_id"],))
 
 
@@ -646,14 +639,14 @@ def page_audit():
             st.html('<div class="rp-note">No client_calls.jsonl in this run folder.</div>')
             return
         f1, f2 = st.columns(2)
-        ev_f = f1.multiselect("Message", sorted(by_id), default=[], placeholder="All messages")
+        ev_f = f1.multiselect("Message", sorted(by_id), default=[], placeholder="All messages", format_func=L.plain)
         tool_f = f2.multiselect("Action", sorted({r["tool"] for r in calls}, key=L.tool_label), default=[],
                                 placeholder="All actions", format_func=L.tool_label)
         rows = [r for r in calls if (not ev_f or r["event_id"] in ev_f) and (not tool_f or r["tool"] in tool_f)]
-        df = pd.DataFrame([{"#": r["seq"], "Message": r["event_id"],
+        df = pd.DataFrame([{"#": r["seq"], "Message": L.plain(r["event_id"]),
                             "Result": L.outcome(r["tool"], r.get("body"), r["status"]),
                             "Action": L.tool_label(r["tool"]), "Details": L.describe(r["tool"], r["args"]),
-                            "Done by": r.get("agent"), "Time (ms)": r.get("ms"), "System tool": r["tool"]}
+                            "Done by": r.get("agent"), "Time (ms)": r.get("ms")}
                            for r in rows])
         if len(df):
             st.dataframe(df, hide_index=True, width="stretch", height=520)
@@ -692,7 +685,7 @@ def page_summary():
                 ex = t["execution"]
                 esc_pill = C.tone_pill(P, "sent to a person", "warn", True) if t["escalations"] else ""
                 rows.append(
-                    f'<div class="rp-li"><div class="id">{esc(t["event_id"])}</div>'
+                    f'<div class="rp-li"><div class="id">{name(t["event_id"])}</div>'
                     f'<div class="rp-row">{"".join(C.type_pill(P, x) for x in types_of(t))}{esc_pill}</div>'
                     f'<div class="nums"><span><b>{n_writes(t)}</b> changes</span>'
                     f'<span><b>{sum(1 for r in ex if r["kind"] == "read")}</b> look-ups</span>'

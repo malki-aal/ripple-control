@@ -1,0 +1,127 @@
+"""Graphviz DOT for impact paths and the ontology.
+
+Same traversal and grouping as before; only the drawing changed. Edges carry no text labels, so nothing sits on
+top of a line: the edge type is in the hover tooltip and in the "Traversed edges" list under the graph. Node
+labels stay inside their boxes. Derived edges (lot to order) are dashed.
+"""
+import html
+from collections import defaultdict
+
+from .theme import FONT_STACK
+
+LEAF = {"CustomerOrder", "Customer", "Dealer", "Vehicle"}
+NICE = {"ProductionOrder": "Production order", "CustomerOrder": "Customer order", "LoanerPool": "Loaner pool"}
+
+
+def ntype(k):
+    return k.split(":", 1)[0]
+
+
+def nid(k):
+    return k.split(":", 1)[1]
+
+
+def incident_edges(trace, entry):
+    """Graph edges for one incident: its own impact path plus dealer edges for its affected orders."""
+    imp = entry.get("impact") or {}
+    edges = list(imp.get("path", []))
+    pos = {f"ProductionOrder:{p}" for p in imp.get("affected_pos", [])}
+    dp = (trace.get("dealer_plan") or {}).get("path", [])
+    cos = {e["dst"] for e in dp if e["src"] in pos}
+    edges += [e for e in dp if e["src"] in pos or e["src"] in cos]
+    return edges
+
+
+def _q(s):
+    return '"' + str(s).replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def _label(t, main, sub=None):
+    kind = html.escape(NICE.get(t, t).upper())
+    extra = f'<BR/><FONT POINT-SIZE="14">{html.escape(str(sub))}</FONT>' if sub else ""
+    return f'<<FONT POINT-SIZE="13">{kind}</FONT><BR/><B>{html.escape(str(main))}</B>{extra}>'
+
+
+def _header(P):
+    font = FONT_STACK.split(",")[0].strip('"')
+    return [
+        "digraph G {",
+        f'graph [rankdir=LR, bgcolor="transparent", nodesep=0.18, ranksep=0.8, pad=0.25, fontname="{font}"];',
+        f'node [shape=box, style="rounded,filled", penwidth=1.8, margin="0.2,0.09", fontname="{font}", '
+        f'fontsize=16, fontcolor="{P["ink"]}"];',
+        f'edge [color="{P["edge"]}", penwidth=1.4, arrowsize=0.75];',
+    ]
+
+
+def _node(P, key, t, label):
+    color = P["nodes"].get(t, P["muted"])
+    fill = P["raised"] if P["name"] == "mission" else P["paper"]
+    return f'{_q(key)} [label={label}, color="{color}", fillcolor="{fill}", tooltip={_q(NICE.get(t, t))}];'
+
+
+def dot_graph(P, edges, focus_po=None, meanings=None, vehicle_status=None):
+    """Head entities are drawn one by one; bulky leaf types are grouped per parent unless a single production
+    order is in focus, in which case its full subtree is drawn."""
+    meanings = meanings or {}
+    vehicle_status = vehicle_status or {}
+    if focus_po:
+        root = f"ProductionOrder:{focus_po}"
+        keep, frontier = {root}, [root]
+        while frontier:
+            n = frontier.pop()
+            for e in edges:
+                if e["src"] == n and ntype(e["dst"]) in LEAF and e["dst"] not in keep:
+                    keep.add(e["dst"])
+                    frontier.append(e["dst"])
+        edges = [e for e in edges if (ntype(e["dst"]) != "ProductionOrder" or e["dst"] == root)
+                 and (ntype(e["src"]) not in LEAF | {"ProductionOrder"} or e["src"] in keep)]
+    nodes, lines, seen, groups = {}, [], set(), defaultdict(set)
+    for e in edges:
+        s, d = e["src"], e["dst"]
+        if not focus_po and ntype(s) in LEAF:
+            continue
+        if not focus_po and ntype(d) in LEAF:
+            groups[(s, ntype(d))].add(d)
+            continue
+        nodes[s] = (ntype(s), _label(ntype(s), nid(s)))
+        nodes[d] = (ntype(d), _label(ntype(d), nid(d)))
+        if (s, d, e["etype"]) not in seen:
+            seen.add((s, d, e["etype"]))
+            tip = e["etype"].lower().replace("_", " ") + (": " + meanings[e["etype"]] if e["etype"] in meanings else "")
+            style = f', style=dashed, color="{P["nodes"]["Lot"]}", penwidth=1.8' if e.get("derived") else ""
+            lines.append(f"{_q(s)} -> {_q(d)} [tooltip={_q(tip)}{style}];")
+    for (parent, t), members in groups.items():
+        g = f"{t}@{parent}"
+        word = NICE.get(t, t).lower() + ("s" if len(members) != 1 else "")
+        sub = None
+        if t == "Vehicle" and vehicle_status:
+            sold = sum(1 for m in members if vehicle_status.get(nid(m)) == "sold")
+            sub = f"{sold} sold · {len(members) - sold} in stock"
+        elif len(members) <= 3:
+            sub = ", ".join(sorted(nid(m) for m in members))
+        nodes[g] = (t, _label(t, f"{len(members)} {word}", sub))
+        lines.append(f"{_q(parent)} -> {_q(g)} [tooltip={_q('grouped ' + word)}];")
+    out = _header(P) + [_node(P, n, t, lab) for n, (t, lab) in nodes.items()]
+    return "\n".join(out + lines + ["}"])
+
+
+def ontology_dot(P, onto, counts):
+    nodes_c, edges_c = counts.get("nodes", {}), counts.get("edges", {})
+    types = sorted({v["src"] for v in onto["edge_types"].values()} | {v["dst"] for v in onto["edge_types"].values()})
+    out = _header(P)
+    for t in types:
+        c = nodes_c.get(t)
+        out.append(_node(P, t, t, _label(t, f"{c:,}" if isinstance(c, int) else "–")))
+    for k, v in onto["edge_types"].items():
+        tip = f"{k.lower().replace('_', ' ')}: {v.get('meaning', '')} ({edges_c.get(k, '?')})"
+        style = f', style=dashed, color="{P["nodes"]["Lot"]}", penwidth=1.8' if k == "LOT_USED_IN_ORDER" else ""
+        out.append(f"{_q(v['src'])} -> {_q(v['dst'])} [tooltip={_q(tip)}{style}];")
+    return "\n".join(out + ["}"])
+
+
+def legend(P, types, derived=False):
+    items = "".join(f'<span><i style="background:{P["nodes"].get(t, P["muted"])}"></i>{NICE.get(t, t)}</span>'
+                    for t in types)
+    if derived:
+        items += '<span><i class="dash"></i>derived (same plant + build window + BOM)</span>'
+    return f'<div class="rp-legend">{items}</div>'

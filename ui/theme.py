@@ -172,6 +172,15 @@ html, body, .stApp, .stApp *:not([data-testid="stIconMaterial"]) {{ font-family:
 .rp-feed .types {{ margin: 8px 0; display: flex; gap: 6px; flex-wrap: wrap; }}
 .rp-feed .foot {{ font-size: 13px; color: var(--muted); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }}
 
+/* ---------- hover explanation for where a message came from (sits above the card's click area) */
+.rp-src {{ position: relative; z-index: 4; cursor: help; text-decoration: underline dotted; text-underline-offset: 3px; }}
+.rp-src:hover::after, .rp-src:focus::after {{ content: attr(data-tip); position: absolute; right: 0; top: calc(100% + 6px);
+  width: max-content; max-width: 240px; white-space: normal; text-align: left; background: var(--hero); color: #FFFFFF;
+  font-size: 13px; font-weight: 500; line-height: 1.4; padding: 8px 10px; border-radius: 8px; z-index: 20; }}
+.st-key-feed, [class*="st-key-feeditem_"], .rp-feed {{ overflow: visible; }}
+.st-key-feed {{ overflow-y: auto; overflow-x: visible; }}
+.rp-sub .rp-src:hover::after, .rp-sub .rp-src:focus::after {{ left: 0; right: auto; }}
+
 /* ---------- streamlit widgets */
 [data-testid="stTabs"] [role="tablist"] {{ gap: 6px; border-bottom: 1px solid var(--rule); flex-wrap: wrap;
   overflow: visible !important; }}

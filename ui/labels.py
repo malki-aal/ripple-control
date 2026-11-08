@@ -79,7 +79,16 @@ TOOL_LABEL = {
     "escalate": "Send to a person",
 }
 
-STATUS_LABEL = {"confirmed": "Done", "rejected": "Failed", "unknown": "No reply", "blocked": "Blocked"}
+SOURCE_HELP = {
+    "daily digest": "A daily email that bundles several updates into one message.",
+    "ops chat": "The operations team's group chat. Informal, sometimes rumors.",
+    "quality bulletin": "An official notice from the quality team about faulty parts.",
+    "news wire": "General incoming messages, here dealers asking about brochures.",
+    "plant alert": "An automatic alert sent by a factory's own systems.",
+    "supplier email": "An email from a company that supplies parts.",
+}
+
+STATUS_LABEL ={"confirmed": "Done", "rejected": "Failed", "unknown": "No reply", "blocked": "Blocked"}
 
 
 def tool_label(tool):

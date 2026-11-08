@@ -81,6 +81,12 @@ def name(i):
     return esc(L.plain(i)) if i else "–"
 
 
+def source(s):
+    """Source name with a hover explanation (the name itself stays as received, e.g. 'ops chat')."""
+    tip = L.SOURCE_HELP.get(s)
+    return (f'<span class="rp-src" tabindex="0" data-tip="{esc(tip)}">{esc(s)}</span>' if tip else esc(s))
+
+
 def pt(text):
     """Escape a sentence after swapping coded IDs and ISO dates for plain words."""
     return esc(L.plain_text(text))
@@ -298,7 +304,7 @@ def feed_card(t, selected):
     if n_failed(t):
         foot.append(C.tone_pill(P, f"{n_failed(t)} failed", "bad"))
     return (f'<div class="rp-feed{" sel" if selected else ""}"><div class="top"><span class="id">{name(t["event_id"])}</span>'
-            f'<span class="meta">{esc(t["received_at"][11:16])} · {esc(t["source"])}</span></div>'
+            f'<span class="meta">{esc(t["received_at"][11:16])} · {source(t["source"])}</span></div>'
             f'<div class="types">{pills}</div><div class="foot">{"".join(f"<span>{x}</span>" for x in foot)}</div></div>')
 
 
@@ -524,7 +530,7 @@ def detail(t):
     st.html(
         '<div class="rp-card rp-stack">'
         + title(L.plain(t["event_id"]), pills)
-        + f'<div class="rp-sub">{esc(t["received_at"].replace("T", " "))} · {esc(t["source"])}</div>'
+        + f'<div class="rp-sub">{esc(t["received_at"].replace("T", " "))} · {source(t["source"])}</div>'
         + (f'<div class="rp-quote">{esc(ev["text"])}</div>' if ev else "")
         + event_story(t) + "</div>")
     st.html(C.stats([(len(t["incidents"]), "problems in this message", None), (n_writes(t), "changes made", None),

@@ -649,10 +649,7 @@ def page_audit():
         st.html(title("Audit trail"))
         if not log_exists:
             st.html(C.callout("bad", f"<b>Official log missing.</b> No action_log.jsonl in {esc(args.run)}."))
-        elif SAME:
-            st.html(C.callout("ok", f"<b>Our record matches the organizers' official log exactly</b> "
-                                    f"({len(log)} actions, same order)."))
-        elif log and calls:
+        elif log and calls and not SAME:  # only speak up when something is wrong
             st.html(C.callout("bad", "<b>Our record and the organizers' official log differ.</b>"))
         st.html(C.stats([
             (len(log), "actions in the official log", None),

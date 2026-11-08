@@ -21,7 +21,7 @@ from ui import labels as L
 from ui.components import TYPE_LABEL, esc
 from ui.graph import dot_graph, incident_edges, legend, nid, ntype, ontology_dot
 from ui.similar import load_similar, neighbours
-from ui.theme import CHART, P, css
+from ui.theme import P, css
 
 st.set_page_config(page_title="Ripple", page_icon=":material/waves:", layout="wide", initial_sidebar_state="collapsed")
 
@@ -298,48 +298,16 @@ def message_about(t):
     return "; ".join(dict.fromkeys(out))
 
 
-def open_from_timeline():
-    """Click on a timeline dot: open that message (runs as a callback, before the page is drawn)."""
-    key = f"timeline_{st.session_state.get('tl_n', 0)}"
-    state = st.session_state.get(key) or {}
-    selection = (state.get("selection") if hasattr(state, "get") else getattr(state, "selection", None)) or {}
-    picked = selection.get("pick") or []
-    eid = picked[0].get("eid") if picked else None
-    if eid in by_id:
-        st.session_state.tl_n = st.session_state.get("tl_n", 0) + 1  # fresh chart next time, so the click doesn't stick
-        select(eid)
-
-
-def outcome_of(t):
-    return "Sent to a person" if t["escalations"] else "Ignored" if not t["execution"] else "Acted on"
-
-
 def overview():
     with st.container(key="card_overview"):
         st.html(
             '<div class="rp-stack">' + title("Run summary")
-            + C.stats([(TOT["events"], "messages handled", None), (TOT["calls"], "actions taken", None),
-                       (TOT["failed"], "failed actions", "ok" if not TOT["failed"] else "bad"),
-                       (TOT["writes"], "changes made", None),
-                       (TOT["escalated"], "escalated to a human", "warn" if TOT["escalated"] else "ok"),
-                       (TOT["noise"], "junk messages ignored", None)], hero=True)
+            + C.stats([(TOT["events"], "Messages received", None), (TOT["calls"], "Actions taken", None),
+                       (TOT["writes"], "Changes made", None),
+                       (TOT["failed"], "Failed actions", "ok" if not TOT["failed"] else "bad"),
+                       (TOT["escalated"], "Sent to a person", "warn" if TOT["escalated"] else None),
+                       (TOT["noise"], "Ignored as noise", None)], hero=True)
             + "</div>")
-        cl, cr = st.columns([2.3, 1], gap="large")
-        with cl:
-            st.html(C.section("Actions taken for each message, by arrival time", "click a dot to open it"))
-            rows = [{"eid": t["event_id"], "num": int(t["event_id"].split("-")[1]), "received_at": t["received_at"],
-                     "source": t["source"], "about": message_about(t), "actions": len(t["execution"]),
-                     "changes": n_writes(t), "outcome": outcome_of(t)} for t in traces]
-            n = st.session_state.setdefault("tl_n", 0)
-            st.altair_chart(CH.morning_timeline(rows), on_select=open_from_timeline, selection_mode=["pick"],
-                            key=f"timeline_{n}", theme=None, width="stretch")
-        with cr:
-            st.html(C.section("What the actions were"))
-            kinds_n = Counter(r["kind"] for r in calls)
-            st.altair_chart(CH.action_donut([("Changes made", kinds_n.get("write", 0), CHART["change"]),
-                                             ("Look-ups", kinds_n.get("read", 0), CHART["lookup"]),
-                                             ("Sent to a person", kinds_n.get("escalation", 0), CHART["handoff"])]),
-                            theme=None, width="stretch")
 
 
 def feed_card(t, selected):

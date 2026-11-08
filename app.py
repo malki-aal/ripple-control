@@ -288,10 +288,10 @@ def overview():
         st.html(
             '<div class="rp-card rp-stack">' + title("Run summary")
             + C.stats([(TOT["events"], "events handled", None), (TOT["calls"], "tool calls", None),
-                       (TOT["failed"], "failed calls", "ok" if not TOT["failed"] else "bad")], hero=True)
-            + C.stats([(TOT["writes"], "confirmed writes", None),
+                       (TOT["failed"], "failed calls", "ok" if not TOT["failed"] else "bad"),
+                       (TOT["writes"], "confirmed writes", None),
                        (TOT["escalated"], "escalated to a human", "warn" if TOT["escalated"] else "ok"),
-                       (TOT["noise"], "noise, 0 calls", None)])
+                       (TOT["noise"], "noise, 0 calls", None)], hero=True)
             + f'<div class="rp-row" style="gap:18px">{chips}</div>'
             + C.facts([("Run", esc(manifest.get("run_id"))), ("Extractor", esc(manifest.get("extractor")))])
             + "</div>")
@@ -556,27 +556,51 @@ def detail(t):
         tab_execution(t)
 
 
+def type_filter():
+    """A labelled dropdown filter (reads as a filter, not as a row of buttons). Returns the matching events."""
+    types_all = sorted({x for t in traces for x in types_of(t)},
+                       key=lambda x: list(TYPE_LABEL).index(x) if x in TYPE_LABEL else 99)
+    flt = st.multiselect("Filter by event type", types_all, key="flt", placeholder="All event types",
+                         format_func=lambda x: TYPE_LABEL.get(x, x))
+    return [t for t in traces if not flt or any(x in flt for x in types_of(t))]
+
+
+def feed_item(t):
+    with st.container(key=f"feeditem_{safe(t['event_id'])}"):
+        st.html(feed_card(t, sel == t["event_id"]))
+        st.button(f"Open {t['event_id']}", key=f"b{t['event_id']}", on_click=select, args=(t["event_id"],))
+
+
 def page_feed():
+    if sel is None:
+        # front page: run summary across the full width, then the events as a section underneath
+        overview()
+        with st.container(key="card_events"):
+            fl, fr = st.columns([2, 1], vertical_alignment="bottom")
+            with fr:
+                rows = type_filter()
+            fl.html(f'<div class="rp-head"><div class="rp-h1">Events</div></div>'
+                    f'<div class="rp-sub">{len(rows)} of {len(traces)} shown</div>')
+            if not rows:
+                st.html('<div class="rp-note">No events match this filter.</div>')
+            per_row = 4
+            for i in range(0, len(rows), per_row):
+                cols = st.columns(per_row)
+                for col, t in zip(cols, rows[i:i + per_row]):
+                    with col:
+                        feed_item(t)
+        return
     left, right = st.columns([1, 2.6], gap="large")
     with left:
         with st.container(key="feed"):
-            types_all = sorted({x for t in traces for x in types_of(t)},
-                               key=lambda x: list(TYPE_LABEL).index(x) if x in TYPE_LABEL else 99)
-            flt = st.pills("Filter", types_all, selection_mode="multi", key="flt",
-                           format_func=lambda x: TYPE_LABEL.get(x, x), label_visibility="collapsed")
-            rows = [t for t in traces if not flt or any(x in flt for x in types_of(t))]
+            rows = type_filter()
             if not rows:
-                st.html('<div class="rp-note">No events match.</div>')
+                st.html('<div class="rp-note">No events match this filter.</div>')
             for t in rows:
-                with st.container(key=f"feeditem_{safe(t['event_id'])}"):
-                    st.html(feed_card(t, sel == t["event_id"]))
-                    st.button(f"Open {t['event_id']}", key=f"b{t['event_id']}", on_click=select, args=(t["event_id"],))
+                feed_item(t)
     with right:
-        if sel is None:
-            overview()
-        else:
-            with st.container(key=f"detail_{safe(sel)}"):
-                detail(by_id[sel])
+        with st.container(key=f"detail_{safe(sel)}"):
+            detail(by_id[sel])
 
 
 # ============================================================================ other pages

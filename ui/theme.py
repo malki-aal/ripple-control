@@ -207,6 +207,10 @@ html, body, .stApp, .stApp *:not([data-testid="stIconMaterial"]) {{ font-family:
 [data-testid="stCheckbox"] label:has(input[role="switch"]:checked) > div:not([data-testid]) {{ background: var(--primary) !important; }}
 [data-testid="stGraphVizChart"] svg {{ max-width: 100%; height: auto; }}
 /* Streamlit shrinks graph text to ~9.6px; restore the sizes the graphs are laid out for (SVG user units) */
-[data-testid="stGraphVizChart"] svg g.node text {{ font-size: 13px !important; }}
+[data-testid="stGraphVizChart"] svg g.node text {{ font-size: 13px !important; font-weight: 700; }}
 .st-key-page_graph [data-testid="stGraphVizChart"] svg g.node text {{ font-size: 17px !important; }}
+/* knowledge graph: scale the whole diagram down so it fits on one screen without scrolling */
+.st-key-page_graph [data-testid="stGraphVizChart"] {{ display: flex; justify-content: center; }}
+.st-key-page_graph [data-testid="stGraphVizChart"] svg {{ width: auto !important; height: auto !important;
+  max-width: 100%; max-height: min(calc(100vh - 270px), 620px); }}
 </style>"""

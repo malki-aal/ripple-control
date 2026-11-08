@@ -9,24 +9,23 @@ FONT_STACK = '"Plus Jakarta Sans", ui-sans-serif, system-ui, "Segoe UI", sans-se
 MONO_STACK = 'ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace'
 
 P = {
-    "bg": "#F4EDE3", "paper": "#FFFDF9", "raised": "#F1E8DA", "group": "#E6D9C6", "rule": "#DCCDB8",
-    "ink": "#2A241D", "muted": "#6A5E50",
-    "hero": "#4B3A28", "hero_ink": "#FFF8EE", "hero_muted": "#E3D3BC",
-    "primary": "#8A6A45", "primary_soft": "#EFE2CF",
-    "ok": "#3F7A55", "ok_soft": "#E3EEE4", "bad": "#A63A32", "bad_soft": "#F6E1DD",
-    "warn": "#8F5B12", "warn_soft": "#F5E7CF",
-    "edge": "#8C7F70",
-    # incident types: (ink, solid light fill)
+    # neutral base (no earth tones) with bold, solid accents; every bold color passes 4.5:1 with white text
+    "bg": "#F1F3F6", "paper": "#FFFFFF", "raised": "#EEF1F5", "group": "#D5DBE3", "rule": "#D5DBE3",
+    "ink": "#111827", "muted": "#4B5563",
+    "hero": "#111827", "hero_ink": "#FFFFFF", "hero_muted": "#D1D5DB", "hero_hover": "#1F2937",
+    "primary": "#1D4ED8",
+    "ok": "#15803D", "bad": "#B91C1C", "warn": "#B45309",
+    "edge": "#6B7280",
+    # incident types: one bold solid color each (white text on top)
     "types": {
-        "supplier_delay": ("#8F5B12", "#F5E7CF"), "plant_outage": ("#4A6585", "#E1E8EF"),
-        "quality_hold": ("#79558A", "#EDE3F0"), "noise": ("#6A645B", "#ECE7DF"),
-        "unconfirmed": ("#6E6826", "#EFEBD2"),
+        "supplier_delay": "#A21CAF", "plant_outage": "#1D4ED8", "quality_hold": "#0F766E",
+        "noise": "#4B5563", "unconfirmed": "#BE123C",
     },
-    # graph node types: border color
+    # graph node types: solid fill with white text
     "nodes": {
-        "Supplier": "#79558A", "Shipment": "#4A6585", "Part": "#8F5B12", "Model": "#4F7A5A", "Plant": "#8A6A45",
-        "ProductionOrder": "#A04E36", "CustomerOrder": "#9A7B2E", "Customer": "#9A5470", "Dealer": "#4F6F7A",
-        "Lot": "#7A4A12", "Vehicle": "#6A645B", "LoanerPool": "#7D776D",
+        "Supplier": "#6D28D9", "Shipment": "#1D4ED8", "Part": "#0369A1", "Model": "#15803D", "Plant": "#0F766E",
+        "ProductionOrder": "#B91C1C", "CustomerOrder": "#4338CA", "Customer": "#BE185D", "Dealer": "#0E7490",
+        "Lot": "#A21CAF", "Vehicle": "#4B5563", "LoanerPool": "#374151",
     },
 }
 
@@ -60,7 +59,7 @@ html, body, .stApp, .stApp *:not([data-testid="stIconMaterial"]) {{ font-family:
 .st-key-topnav label[data-testid="stRadioOption"] > div > div:first-child:not([data-testid]) {{ display: none !important; }}
 .st-key-topnav label[data-testid="stRadioOption"] p {{ font-size: 16px !important; font-weight: 600;
   color: var(--hero_muted) !important; margin: 0; }}
-.st-key-topnav label[data-testid="stRadioOption"]:hover {{ background: #5E4A35; }}
+.st-key-topnav label[data-testid="stRadioOption"]:hover {{ background: var(--hero_hover); }}
 .st-key-topnav label[data-testid="stRadioOption"]:has(input:checked) {{ background: var(--paper); }}
 .st-key-topnav label[data-testid="stRadioOption"]:has(input:checked) p {{ color: var(--hero) !important; }}
 .st-key-topnav [data-testid="stWidgetLabel"] {{ display: none; }}
@@ -82,9 +81,11 @@ html, body, .stApp, .stApp *:not([data-testid="stIconMaterial"]) {{ font-family:
 .rp-policy {{ display: flex; gap: 10px; align-items: baseline; font-size: 14px; color: var(--muted); line-height: 1.45; }}
 .rp-policy span:first-child {{ font-weight: 700; color: var(--primary); white-space: nowrap; }}
 .rp-callout {{ border-radius: 14px; padding: 12px 16px; font-size: 15px; line-height: 1.45; border: 1px solid; }}
-.rp-callout.warn {{ background: var(--warn_soft); border-color: var(--warn); color: var(--ink); }}
-.rp-callout.bad {{ background: var(--bad_soft); border-color: var(--bad); color: var(--ink); }}
-.rp-callout.ok {{ background: var(--ok_soft); border-color: var(--ok); color: var(--ink); }}
+.rp-callout {{ background: var(--paper); border-width: 2px; border-left-width: 8px; }}
+.rp-callout.warn {{ border-color: var(--warn); color: var(--ink); }}
+.rp-callout.bad {{ border-color: var(--bad); color: var(--ink); }}
+.rp-callout.ok {{ border-color: var(--ok); color: var(--ink); }}
+.rp-callout.warn b {{ color: var(--warn); }} .rp-callout.bad b {{ color: var(--bad); }} .rp-callout.ok b {{ color: var(--ok); }}
 
 /* ---------- plain-language event summary */
 .rp-sum {{ display: flex; flex-direction: column; gap: 6px; }}
@@ -124,7 +125,7 @@ html, body, .stApp, .stApp *:not([data-testid="stIconMaterial"]) {{ font-family:
   font-size: 13px; text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--rule); white-space: nowrap; }}
 .rp-table td {{ padding: 10px 12px; border-bottom: 1px solid var(--rule); vertical-align: middle; line-height: 1.4; }}
 .rp-table tr:last-child td {{ border-bottom: 0; }}
-.rp-table tr.miss td {{ background: var(--warn_soft); }}
+.rp-table tr.miss td:first-child {{ box-shadow: inset 5px 0 0 var(--warn); }}
 .rp-table td.num {{ text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }}
 .rp-table td.id {{ font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }}
 .rp-table td.wrap {{ min-width: 200px; }}
@@ -164,7 +165,7 @@ html, body, .stApp, .stApp *:not([data-testid="stIconMaterial"]) {{ font-family:
 .rp-feed {{ background: var(--paper); border: 1px solid var(--rule); border-radius: 16px; padding: 12px 14px; }}
 [class*="st-key-feeditem_"]:has(button:hover) .rp-feed {{ border-color: var(--primary); }}
 [class*="st-key-feeditem_"]:has(button:focus-visible) .rp-feed {{ outline: 3px solid var(--primary); outline-offset: 2px; }}
-.rp-feed.sel {{ border: 2px solid var(--primary); background: var(--primary_soft); padding: 11px 13px; }}
+.rp-feed.sel {{ border: 2px solid var(--primary); padding: 11px 13px; box-shadow: inset 6px 0 0 var(--primary); }}
 .rp-feed .top {{ display: flex; justify-content: space-between; gap: 8px; align-items: center; }}
 .rp-feed .id {{ font-size: 17px; font-weight: 700; color: var(--ink); }}
 .rp-feed .meta {{ font-size: 13px; color: var(--muted); }}
@@ -183,9 +184,9 @@ html, body, .stApp, .stApp *:not([data-testid="stIconMaterial"]) {{ font-family:
 [data-testid="stButtonGroup"] button[data-variant="pills"] {{ background: var(--paper) !important;
   border: 1px solid var(--rule) !important; color: var(--ink) !important; }}
 [data-testid="stButtonGroup"] button[data-variant="pills"] p {{ font-size: 14px !important; font-weight: 600; color: var(--ink) !important; }}
-[data-testid="stButtonGroup"] button[data-variant="pills"][aria-pressed="true"] {{ background: var(--primary_soft) !important;
+[data-testid="stButtonGroup"] button[data-variant="pills"][aria-pressed="true"] {{ background: var(--primary) !important;
   border-color: var(--primary) !important; }}
-[data-testid="stButtonGroup"] button[data-variant="pills"][aria-pressed="true"] p {{ color: var(--primary) !important; }}
+[data-testid="stButtonGroup"] button[data-variant="pills"][aria-pressed="true"] p {{ color: #FFFFFF !important; }}
 [data-testid="stExpander"] details {{ background: var(--paper); border: 1px solid var(--rule) !important; border-radius: 14px; }}
 [data-testid="stExpander"] summary {{ color: var(--ink) !important; background: transparent !important; border-radius: 14px; }}
 [data-testid="stExpander"] summary:hover {{ background: var(--raised) !important; }}

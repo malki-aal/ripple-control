@@ -59,7 +59,7 @@ def _node(P, key, t, label, tall=False, w=2.4, h=0.75):
     """Every box has the same fixed size so labels and numbers sit centered in a tidy grid."""
     color = P["nodes"].get(t, P["muted"])
     size = f'width={w}, height={h + 0.25 if tall else h}, fixedsize=true'
-    return (f'{_q(key)} [label={label}, color="{color}", fillcolor="{P["paper"]}", {size}, '
+    return (f'{_q(key)} [label={label}, color="{color}", fillcolor="{color}", fontcolor="#FFFFFF", {size}, '
             f'tooltip={_q(NICE.get(t, t))}];')
 
 

@@ -1,11 +1,10 @@
-# Ripple look: calm tan base theme. Mission-control (dark red) styling is layered on top by ui/theme.py
-# whenever the screen shows a live problem.
+# Ripple base theme (neutral, bold accents). The rest of the look is in ui/theme.py.
 [theme]
 base = "light"
-primaryColor = "#8A6A45"
-backgroundColor = "#F4EDE3"
-secondaryBackgroundColor = "#EFE5D6"
-textColor = "#2A241D"
+primaryColor = "#1D4ED8"
+backgroundColor = "#F1F3F6"
+secondaryBackgroundColor = "#EEF1F5"
+textColor = "#111827"
 
 [client]
 toolbarMode = "minimal"

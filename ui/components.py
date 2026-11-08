@@ -11,19 +11,20 @@ def esc(x):
     return html.escape("" if x is None else str(x))
 
 
-def pill(text, fg, bg, dashed=False, title=None):
+def pill(text, color, dashed=False, title=None):
+    """Bold solid pill: white text on a strong color. Dashed pills (needs a human) are outlined in that color."""
     t = f' title="{esc(title)}"' if title else ""
-    return (f'<span class="rp-pill{" dashed" if dashed else ""}"{t} '
-            f'style="color:{fg};background:{bg};border-color:{fg if dashed else bg}">{esc(text)}</span>')
+    style = (f"color:{color};background:#FFFFFF;border:2px dashed {color}" if dashed
+             else f"color:#FFFFFF;background:{color};border:2px solid {color}")
+    return f'<span class="rp-pill"{t} style="{style}">{esc(text)}</span>'
 
 
 def tone_pill(P, text, tone, dashed=False):
-    return pill(text, P[tone], P[tone + "_soft"], dashed)
+    return pill(text, P[tone], dashed)
 
 
 def type_pill(P, t):
-    fg, bg = P["types"].get(t, (P["muted"], P["raised"]))
-    return pill(TYPE_LABEL.get(t, t), fg, bg, dashed=(t == "unconfirmed"))
+    return pill(TYPE_LABEL.get(t, t), P["types"].get(t, P["muted"]), dashed=(t == "unconfirmed"))
 
 
 def status_pill(P, status):

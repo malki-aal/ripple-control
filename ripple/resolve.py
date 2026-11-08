@@ -19,6 +19,7 @@ from datetime import date, datetime, timedelta
 
 WD = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 MON = {m: i + 1 for i, m in enumerate(["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"])}
+MON.update({"ene": 1, "abr": 4, "ago": 8, "dic": 12})   # Spanish abbreviations (marzo, mayo, ... already match)
 
 
 @dataclass
@@ -50,10 +51,25 @@ class Incident:
 def resolve_date(phrase: str | None, received: date) -> ResolvedDate | None:
     if not phrase:
         return None
-    p = phrase.strip().lower().rstrip(".")
+    p = re.sub(r"(\d)(?:st|nd|rd|th)\b", r"\1", phrase.strip().lower().rstrip(".").replace(",", ""))
     m = re.fullmatch(r"(\d{4})-(\d{2})-(\d{2})", p)
     if m:
         return ResolvedDate(phrase, date(*map(int, m.groups())).isoformat(), "iso")
+    m = re.fullmatch(r"(\d{1,2})/(\d{1,2})(?:/(\d{2}|\d{4}))?", p)
+    if m:   # US company: month/day
+        try:
+            y = int(m.group(3)) + (2000 if m.group(3) and len(m.group(3)) == 2 else 0) if m.group(3) else received.year
+            return ResolvedDate(phrase, date(y, int(m.group(1)), int(m.group(2))).isoformat(), "US month/day")
+        except ValueError:
+            return ResolvedDate(phrase, None, "invalid month/day", True)
+    m = re.fullmatch(rf"(?:({'|'.join(WD)})\s+)?(\d{{1,2}})\s+(?:of\s+|de\s+)?([a-z]{{3}})[a-z]*\.?(?:\s+(\d{{4}}))?", p)
+    if m and m.group(3) in MON:   # day-month: "16 March", "25 de marzo"
+        try:
+            d = date(int(m.group(4) or received.year), MON[m.group(3)], int(m.group(2)))
+        except ValueError:
+            return ResolvedDate(phrase, None, "invalid day-month", True)
+        amb = bool(m.group(1)) and WD.index(m.group(1)) != d.weekday()
+        return ResolvedDate(phrase, d.isoformat(), "explicit day-month" + (" (weekday mismatch)" if amb else ""), amb)
     m = re.fullmatch(rf"(?:({'|'.join(WD)})\s+)?([a-z]{{3}})[a-z]*\.?\s+(\d{{1,2}})", p)
     if m and m.group(2) in MON:
         d = date(received.year, MON[m.group(2)], int(m.group(3)))
@@ -130,8 +146,14 @@ class Resolver:
                     inc.unresolved.append(f"{et} id {v} not found in the tables")
         roles = {"supplier_delay": ("original_eta", "new_eta"), "plant_outage": ("start", "end"),
                  "quality_hold": ("build_from", "build_to")}.get(inc.type, ("date_from", "date_to"))
+        phrases = {k: raw.get(k) for k in ("date_from", "date_to")}
+        f, t = (phrases["date_from"] or "").strip(), (phrases["date_to"] or "").strip()
+        if re.fullmatch(r"\d{1,2}", f) and t:      # "24 to 25 March": the bare day takes the other date's month
+            other = resolve_date(t, received)
+            if other and other.value:
+                phrases["date_from"] = f"{date.fromisoformat(other.value):%b} {f}"
         for role, key in zip(roles, ("date_from", "date_to")):
-            rd = resolve_date(raw.get(key), received)
+            rd = resolve_date(phrases[key], received)
             if rd:
                 inc.dates[role] = rd
                 if rd.ambiguous:

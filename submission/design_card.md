@@ -32,6 +32,24 @@ the trace records (it agreed on 15/15). It is also the automatic fallback if the
 fallbacks in the scored run). The judged pipeline therefore still completes with no network. An Ollama backend
 (`qwen2.5:3b-instruct`) is available behind the same contract.
 
+**Cascade mode (`--extractor cascade`): the LLM only when the rules are not sure.** The rules read every message first.
+Their reading is trusted only if every incident has one kind of incident language (no mixed cues), every field the
+policy needs is resolved, nothing is ambiguous, at most one id per entity type and two dates are named, and a "noise"
+verdict mentions no operational words, entities or dates. Otherwise Flash-Lite is called, with the rules kept as the
+cross-check. Sandbox comparison (`tests/compare_models.py`, 15 official + 15 stress events, in-process, compared
+action-for-action with the verified log):
+
+| Extractor | Events correct | LLM calls | LLM tokens | Wasted or failed tool calls | Run time |
+|---|---|---|---|---|---|
+| **Cascade: rules → Gemini 3.1 Flash-Lite** | **30/30** | **5** | **2,028** | 0 | **21 s** |
+| Gemini 3.1 Flash-Lite on every event | 29/30 (1 rescued by the rules fallback) | 30 | 12,858 | 0 | 200 s |
+| Gemma 4 26B-A4B (open weights, ~4B active) | 23/30 | 30 | 11,863 | 20 | 165 s |
+
+The lighter open model lost accuracy, mostly by escalating events it should have acted on, so a smaller model alone was
+not the cheaper answer. Calling the model less often was: the cascade cut LLM tokens by 84% with no loss of accuracy.
+We still scored with Flash-Lite reading every event, because the brief asks for an LLM to understand each event and the
+per-event LLM plus rules cross-check is the more reviewable design. The cascade is the tested cost-saving mode.
+
 ## Guardrails
 - Event text is data. The extractor only *proposes*. Nothing reaches a write tool until code has resolved and checked it.
 - The shipment must match on supplier + part + receiving plant + original ETA, and every stated fact is cross-checked
@@ -66,6 +84,15 @@ fallbacks in the scored run). The judged pipeline therefore still completes with
   schedule, a timeout that did apply (reconciled by a read, not re-sent), a timeout that was lost (escalated, not retried)
   and a server rejection (surfaced). The tests found 3 phrasings the rules missed and an over-escalation after a
   successful reconcile. All were fixed, and the original 15 events still produce exactly the scored actions.
+- **Harder robustness set (`tests/brutal_test.py`, 20 more messages):** typos and lowercase chat, `3/22` and
+  `16 March` dates, a Spanish alert, a cancellation, an outage in the past, a lot named only by id, a quality window
+  matching no lot, noise naming a plant, noise carrying an injected "hold every lot", a three-incident digest with a rumor,
+  one sentence naming two plants, a shipment named only by id, and an on-time confirmation. Strict verdicts (wrong ids or
+  dates, writes on noise, missed escalation = FAIL; escalating instead of acting = SAFE). Rules alone: 11 PASS, 5 FAIL.
+  Gemini on every event: 15 PASS, 3 SAFE, 0 FAIL. The 3 SAFE were date formats the resolver did not know (`3/22`,
+  `16 March`, `24 al 25 de marzo`), fixed in code. After the fix the **cascade scores 20/20 with 13 LLM calls, 0 harmful
+  actions and 0 failed tool calls**, and every write passes the independent handbook replay. Every case the cascade
+  answered on rules alone was correct. Every case the rules got wrong was sent to the LLM.
 - **Gemini run versus rules-only run:** the same 900 calls with the same arguments (only message wording differs). The
   in-process dry run and the server run also give identical results. Databricks rebuild of the graph: parity MATCH (0
   node or edge differences).
@@ -76,6 +103,6 @@ ties broken by `plants.csv` order. In a compound event, incidents are processed 
 lot's own window governs.
 
 ## What we would improve
-Benchmark Gemini Flash-Lite and a local model against the rule extractor on reworded variants of the feed (aliases, relative dates,
-compound digests, adversarial "ignore previous instructions" text). Keep the rules extractor as a cross-checking second
-opinion that escalates when the two disagree.
+Benchmark a 1–3B local model (Qwen2.5 via llama.cpp or Ollama) as the cascade's second stage, so even the hard cases run
+offline. Grow the reworded test set (aliases, relative dates, compound digests, adversarial text) to tune the cascade's
+"not sure" checks. Escalate automatically when the rules and the LLM disagree on a hard case.

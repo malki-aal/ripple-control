@@ -53,7 +53,9 @@ MONTHS = ("jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(
           "sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?")
 DATE_RE = re.compile(
     rf"(?P<iso>\b\d{{4}}-\d{{2}}-\d{{2}}\b)"
-    rf"|(?P<md>\b(?:(?:{WEEKDAYS})\s+)?(?:{MONTHS})\.?\s+\d{{1,2}}\b)"
+    rf"|(?P<md>\b(?:(?:{WEEKDAYS})\s+)?(?:{MONTHS})\.?\s+\d{{1,2}}(?:st|nd|rd|th)?\b)"
+    rf"|(?P<dm>\b\d{{1,2}}(?:st|nd|rd|th)?\s+(?:of\s+)?(?:{MONTHS})\b)"
+    rf"|(?P<num>\b\d{{1,2}}/\d{{1,2}}(?:/\d{{2,4}})?\b)"
     rf"|(?P<rel>\b(?:next|last|this|coming)\s+(?:{WEEKDAYS})\b)"
     rf"|(?P<bare>\b(?:{WEEKDAYS})\b)"
     rf"|(?P<word>\b(?:today|tomorrow|yesterday)\b)",
@@ -273,7 +275,8 @@ class GeminiExtractor:
         if self.model_version:
             self.model_id = f"gemini:{self.model_version}"
         self.last_usage = r.get("usageMetadata", {})
-        out = json.loads(r["candidates"][0]["content"]["parts"][0]["text"])
+        # first JSON object only: open models (Gemma) sometimes append text after the JSON
+        out, _ = json.JSONDecoder().raw_decode(r["candidates"][0]["content"]["parts"][0]["text"].strip())
         validate_raw(out)
         return _attach_lexical(out, text, self.fallback)
 
@@ -302,12 +305,67 @@ def load_dotenv(path=".env"):
                 os.environ.setdefault(k.strip(), v)
 
 
+CUES = {"unconfirmed": RUMOR_RE, "quality_hold": QUALITY_RE, "plant_outage": OUTAGE_RE, "supplier_delay": DELAY_RE}
+# what the rules must have resolved, per type, before their reading is trusted without the LLM
+NEEDS = {"supplier_delay": (("part",), ("supplier", "shipment"), ("original_eta",), ("new_eta",)),
+         "plant_outage": (("plant",), ("start",), ("end",)),
+         "quality_hold": (("lot", "part"), ("lot", "supplier"), ("lot", "plant"), ("build_from",), ("build_to",))}
+
+
+class CascadeExtractor:
+    """Rules first; the LLM is called only when the deterministic reading is not clearly complete.
+
+    The rules reading is trusted only if, for every incident: exactly one kind of incident language is present
+    (no mixed cues), every field the policy needs is resolved, nothing is ambiguous or unresolved, the segment names
+    at most one id per entity type and at most two dates, and a "noise" verdict has no operational words, entity
+    names or dates at all. Anything else goes to the LLM, with the rules reading kept as the cross-check.
+    Event text stays data: the checks only look at what was found, never follow it.
+    """
+
+    def __init__(self, rules, llm):
+        self.rules, self.llm = rules, llm
+        self.model_id = f"cascade(rules -> {llm.model_id})"
+
+    def doubts(self, raw: dict, incidents: list) -> list[str]:
+        out = []
+        for r, inc in zip(raw["incidents"], incidents):
+            seg, tag = r.get("evidence_span") or "", inc.incident_id
+            cues = [k for k, rx in CUES.items() if rx.search(seg)]
+            ids = {}
+            for m in r.get("_mentions", []):
+                ids.setdefault(m["type"], set()).add(m["id"])
+            if inc.type == "noise":
+                if cues or r.get("_mentions") or r.get("_date_phrases") or SHIP_RE.search(seg) or LOT_RE.search(seg):
+                    out.append(f"{tag}: called noise but mentions {cues or 'entities/dates'}")
+                continue
+            if len(cues) > 1:
+                out.append(f"{tag}: mixed incident language {cues}")
+            if inc.unresolved:
+                out.append(f"{tag}: unresolved {inc.unresolved}")
+            if inc.type == "unconfirmed":
+                continue
+            have = set(inc.entities) | set(inc.dates)
+            for alts in NEEDS.get(inc.type, ()):
+                if not have & set(alts):
+                    out.append(f"{tag}: {inc.type} missing {'/'.join(alts)}")
+            multi = [t for t, s in ids.items() if len(s) > 1]
+            if multi:
+                out.append(f"{tag}: several ids named for {multi}")
+            if len(r.get("_date_phrases", [])) > 2:
+                out.append(f"{tag}: {len(r['_date_phrases'])} date phrases")
+        return out
+
+
 def make_extractor(world, kind="auto", model=None):
-    """auto: Gemini if a key is set and a model is visible, else Ollama if running, else rules."""
+    """auto: Gemini if a key is set and a model is visible, else Ollama if running, else rules.
+    cascade: rules first, Gemini (else Ollama) only for events the rules are not sure about."""
     rules = RuleExtractor(world)
     if kind == "rules":
         return rules
     load_dotenv()
+    if kind == "cascade":
+        llm = make_extractor(world, "auto", model)
+        return CascadeExtractor(rules, llm) if llm is not rules else rules
     if kind in ("gemini", "auto"):
         g = GeminiExtractor(model=model, fallback=rules)
         if g.available():

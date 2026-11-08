@@ -356,27 +356,27 @@ def overview():
                        (TOT["escalated"], "Sent to a person", None, "for a human to check")], hero=True)
             + "</div>")
         R = RIPPLE
-        cl, cr = st.columns([1.6, 1], gap="medium")
-        with cl:
-            with st.container(key="card_ripple"):
-                step = lambda n, l, s="": (f'<div class="rp-flow-step"><div class="n">{n:,}</div><div class="l">{esc(l)}</div>'  # noqa: E731
-                                           + (f'<div class="s">{esc(s)}</div>' if s else "") + "</div>")
-                arrow = '<div class="rp-flow-arrow">→</div>'
-                st.html(
-                    C.section("The ripple effect", "traced through the knowledge graph")
-                    + '<div class="rp-flow">'
-                    + arrow.join([step(R["messages"], "messages"), step(R["disruptions"], "real disruptions"),
-                                  step(R["builds"], "car builds affected", f"{R['moved']} moved"),
-                                  step(R["orders"], "customer orders reached"),
-                                  step(R["dealers"], "dealers notified"),
-                                  step(R["customers"], "customers contacted")])
-                    + "</div>"
-                    + '<div class="rp-flow rp-flow-2">'
-                    + arrow.join([step(R["vehicles"], "vehicles checked for a faulty part"),
-                                  step(R["stopped"], "unsold cars pulled from sale")])
-                    + '<div class="rp-flow-gap"></div>'
-                    + step(R["loaners"], "loaner cars given", f"{R['missed']} eligible, none left")
-                    + "</div>")
+        # full-width row: the ripple effect as one clean step line across the page
+        with st.container(key="card_ripple"):
+            step = lambda n, l, s="": (f'<div class="st"><div class="n">{n:,}</div><div class="l">{esc(l)}</div>'  # noqa: E731
+                                       + (f'<div class="s">{esc(s)}</div>' if s else "") + "</div>")
+            st.html(
+                C.section("The ripple effect", "how far 15 messages reached, traced through the knowledge graph")
+                + '<div class="rp-steps">'
+                + step(R["messages"], "Messages received")
+                + step(R["disruptions"], "Real disruptions found")
+                + step(R["builds"], "Car builds affected", f"{R['moved']} moved to a new slot")
+                + step(R["orders"], "Customer orders reached")
+                + step(R["dealers"], "Dealers notified")
+                + step(R["customers"], "Customers contacted")
+                + "</div>"
+                + '<div class="rp-steps-sub">'
+                + f'<div><b>Quality holds:</b> {R["vehicles"]:,} vehicles checked for a faulty part, '
+                  f'{R["stopped"]:,} unsold cars pulled from sale</div>'
+                + f'<div><b>Loaner cars:</b> {R["loaners"]:,} given to priority customers, '
+                  f'{R["missed"]:,} eligible with none left</div>'
+                + "</div>")
+        cl, cr = st.columns([1.7, 1], gap="medium")
         with cr:
             with st.container(key="card_checks"):
                 row = lambda l, v, ok=True: (f'<div class="rp-check"><span class="d{"" if ok else " bad"}"></span>'  # noqa: E731
@@ -391,8 +391,8 @@ def overview():
                     + row("Matches the organizers' official log", f"{len(log)} / {len(calls)}" if SAME else "differs", SAME)
                     + row("Average time to handle a message", f"{R['avg_s']:.1f} s")
                     + row("Knowledge-graph links followed", f"{R['edges']:,}"))
-        with st.container(key="card_permsg"):
-            st.html(C.section("Actions taken for each message", "hover for details, click a bar to open the message"))
+        with cl, st.container(key="card_permsg"):
+            st.html(C.section("Actions taken for each message", "click a bar to open the message"))
             bars = []
             for t in traces:
                 k = Counter(r["kind"] for r in t["execution"])

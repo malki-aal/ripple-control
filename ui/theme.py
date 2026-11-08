@@ -147,6 +147,20 @@ html, body, .stApp, .stApp *:not([data-testid="stIconMaterial"]) {{ font-family:
 .rp-check .l {{ color: var(--ink); line-height: 1.35; }}
 .rp-check .v {{ font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; }}
 
+/* front page: the ripple effect as one step line (dot + rule on top of each step, no boxes) */
+.rp-steps {{ display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); margin-top: 18px; }}
+.rp-steps .st {{ position: relative; border-top: 2px solid var(--rule); padding: 16px 18px 4px 0; min-width: 0; }}
+.rp-steps .st::before {{ content: ""; position: absolute; top: -7px; left: 0; width: 12px; height: 12px;
+  border-radius: 50%; background: var(--primary); box-shadow: 0 0 0 3px var(--paper); }}
+.rp-steps .st:last-child {{ border-top-color: transparent; }}
+.rp-steps .n {{ font-size: 28px; font-weight: 600; line-height: 1.1; color: var(--primary); font-variant-numeric: tabular-nums; }}
+.rp-steps .l {{ font-size: 14px; font-weight: 500; color: var(--ink); margin-top: 4px; line-height: 1.3; }}
+.rp-steps .s {{ font-size: 13px; color: var(--muted); margin-top: 2px; line-height: 1.3; }}
+.rp-steps-sub {{ display: flex; flex-wrap: wrap; gap: 8px 40px; margin-top: 18px; padding-top: 14px;
+  border-top: 1px solid var(--rule); font-size: 14px; color: var(--ink); line-height: 1.45; }}
+.rp-steps-sub b {{ font-weight: 600; }}
+@media (max-width: 900px) {{ .rp-steps {{ grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 18px; }} }}
+
 /* ---------- facts grid */
 .rp-facts {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr)); gap: 10px; }}
 .rp-fact {{ background: var(--raised); border-radius: 8px; padding: 12px 14px; min-width: 0; box-sizing: border-box;

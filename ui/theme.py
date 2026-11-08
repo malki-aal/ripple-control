@@ -128,6 +128,25 @@ html, body, .stApp, .stApp *:not([data-testid="stIconMaterial"]) {{ font-family:
 .st-key-card_overview, .st-key-card_events {{ background: transparent !important; border: 0 !important;
   padding: 0 !important; box-shadow: none !important; }}
 
+/* front page: ripple-effect flow (number, label, arrow) and the checks list */
+.rp-flow {{ display: flex; align-items: stretch; gap: 6px; flex-wrap: nowrap; margin-top: 12px; }}
+.rp-flow-step {{ flex: 1 1 0; min-width: 0; padding: 12px 14px; background: var(--raised); border: 1px solid var(--rule);
+  border-radius: 8px; display: flex; flex-direction: column; gap: 4px; }}
+.rp-flow-step .n {{ font-size: 24px; font-weight: 600; line-height: 1.1; color: var(--primary);
+  font-variant-numeric: tabular-nums; }}
+.rp-flow-step .l {{ font-size: 13px; font-weight: 500; color: var(--ink); line-height: 1.3; }}
+.rp-flow-step .s {{ font-size: 12.5px; color: var(--muted); line-height: 1.3; }}
+.rp-flow-arrow {{ align-self: center; color: var(--muted); font-size: 15px; flex: none; }}
+.rp-flow-2 {{ margin-top: 10px; }}
+.rp-flow-gap {{ flex: 0 0 18px; }}
+.rp-check {{ display: grid; grid-template-columns: 10px 1fr auto; gap: 12px; align-items: center; padding: 11px 0;
+  border-bottom: 1px solid var(--rule); font-size: 14px; }}
+.rp-check:last-child {{ border-bottom: 0; }}
+.rp-check .d {{ width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }}
+.rp-check .d.bad {{ background: var(--bad); }}
+.rp-check .l {{ color: var(--ink); line-height: 1.35; }}
+.rp-check .v {{ font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; }}
+
 /* ---------- facts grid */
 .rp-facts {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr)); gap: 10px; }}
 .rp-fact {{ background: var(--raised); border-radius: 8px; padding: 12px 14px; min-width: 0; box-sizing: border-box;

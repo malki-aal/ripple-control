@@ -34,6 +34,34 @@ def _clock(ts):
     return datetime.datetime(2000, 1, 1, t.hour, t.minute)
 
 
+def actions_per_message(rows):
+    """rows: dicts with eid, num, kind, n, total, about, source. Stacked bar per message (changes / look-ups /
+    sent to a person), in arrival order. Hover shows what the message was; click a bar to open it."""
+    kinds = ["Changes made", "Look-ups", "Sent to a person"]
+    src = alt.Data(values=[{**r, "label": f"Message {r['num']}", "order": kinds.index(r["kind"])} for r in rows])
+    pick = alt.selection_point(name="pick", on="click", fields=["eid"], empty=False)
+    hover = alt.selection_point(name="hv", on="pointerover", fields=["eid"], empty=False, clear="pointerout")
+    x = alt.X("num:O", title="Message", axis=alt.Axis(labelAngle=0, ticks=False))
+    bars = (alt.Chart(src).transform_filter(alt.datum.n > 0)
+            .mark_bar(stroke="#FFFFFF", strokeWidth=1, cursor="pointer")
+            .encode(x=x, y=alt.Y("n:Q", title=None, stack="zero", axis=alt.Axis(tickCount=4)),
+                    color=alt.Color("kind:N", scale=alt.Scale(domain=kinds,
+                                                             range=[CHART["change"], CHART["lookup"], CHART["handoff"]])),
+                    order=alt.Order("order:Q"),
+                    opacity=alt.condition(hover, alt.value(1), alt.value(0.85)),
+                    tooltip=[alt.Tooltip("label:N", title="Message"), alt.Tooltip("about:N", title="What it was"),
+                             alt.Tooltip("source:N", title="From"), alt.Tooltip("kind:N", title="Part"),
+                             alt.Tooltip("n:Q", title="Count"), alt.Tooltip("total:Q", title="All actions")])
+            .add_params(pick, hover))
+    # messages with no actions still get a visible, clickable marker on the baseline
+    zero = (alt.Chart(src).transform_filter((alt.datum.total == 0) & (alt.datum.order == 0))
+            .mark_tick(thickness=3, size=18, color=CHART["ignored"], cursor="pointer")
+            .encode(x=x, y=alt.datum(0),
+                    tooltip=[alt.Tooltip("label:N", title="Message"), alt.Tooltip("about:N", title="What it was"),
+                             alt.Tooltip("total:Q", title="All actions")]))
+    return _style(alt.layer(bars, zero).properties(height=260))
+
+
 def workload_area(points):
     """points: dicts with time (ISO), label, total (running actions). Smooth area with a hover crosshair."""
     data = [{**p, "t": _clock(p["received_at"]).isoformat()} for p in points]

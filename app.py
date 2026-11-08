@@ -298,6 +298,54 @@ def message_about(t):
     return "; ".join(dict.fromkeys(out))
 
 
+def open_from_chart():
+    """Click on a bar in the per-message chart: open that message (a callback, so it runs before the page draws)."""
+    state = st.session_state.get(f"permsg_{st.session_state.get('pm_n', 0)}") or {}
+    selection = (state.get("selection") if hasattr(state, "get") else getattr(state, "selection", None)) or {}
+    picked = selection.get("pick") or []
+    eid = picked[0].get("eid") if picked else None
+    if eid in by_id:
+        st.session_state.pm_n = st.session_state.get("pm_n", 0) + 1  # fresh chart next time, so the click doesn't stick
+        select(eid)
+
+
+def ripple_numbers():
+    """Headline 'how far did each message ripple' figures, computed from the trace and call files."""
+    builds, orders = set(), set()
+    for t in traces:
+        for e in t["incidents"]:
+            imp = e.get("impact") or {}
+            builds.update(imp.get("affected_pos") or [])
+            builds.update(nid(x["dst"]) for x in imp.get("path", []) if x["etype"] == "LOT_USED_IN_ORDER")
+    for r in calls:
+        if r["tool"] == "dealer.notify":
+            orders.update(r["args"].get("customer_order_ids") or [])
+    durs = [t.get("duration_ms") or 0 for t in traces]
+    return {
+        "messages": len(traces),
+        "disruptions": sum(1 for t in traces for e in t["incidents"]
+                           if e["incident"]["type"] in ("supplier_delay", "plant_outage", "quality_hold")),
+        "builds": len(builds),
+        "moved": sum(1 for r in calls if r["tool"] in ("mes.reschedule", "mes.transfer") and r["status"] == "confirmed"),
+        "orders": len(orders),
+        "dealers": len({r["args"].get("dealer_id") for r in calls if r["tool"] in ("dealer.notify", "dealer.stop_sale")}),
+        "customers": sum(1 for r in calls if r["tool"] == "crm.notify_customer" and r["status"] == "confirmed"),
+        "vehicles": sum(((e.get("impact") or {}).get("evidence") or {}).get("vehicles_total", 0)
+                        for t in traces for e in t["incidents"] if e["incident"]["type"] == "quality_hold"),
+        "stopped": sum(len(r["args"].get("vins") or []) for r in calls if r["tool"] == "dealer.stop_sale"),
+        "loaners": sum(1 for r in calls if r["tool"] == "crm.assign_loaner" and r["status"] == "confirmed"),
+        "missed": sum(1 for t in traces for x in t.get("loaners") or [] if not x.get("assigned")),
+        "agree": sum(1 for t in traces if ((t.get("understanding") or {}).get("cross_check") or {}).get("agree")),
+        "blocked": sum(len(t["blocked"]) for t in traces),
+        "avg_s": (sum(durs) / len(durs) / 1000) if durs else 0,
+        "edges": sum(len((e.get("impact") or {}).get("path", [])) for t in traces for e in t["incidents"])
+        + sum(len((t.get("dealer_plan") or {}).get("path", [])) for t in traces),
+    }
+
+
+RIPPLE = ripple_numbers()
+
+
 def overview():
     with st.container(key="card_overview"):
         st.html(
@@ -307,6 +355,54 @@ def overview():
                        (TOT["writes"], "Changes made", None, "builds, dealers, customers"),
                        (TOT["escalated"], "Sent to a person", None, "for a human to check")], hero=True)
             + "</div>")
+        R = RIPPLE
+        cl, cr = st.columns([1.6, 1], gap="medium")
+        with cl:
+            with st.container(key="card_ripple"):
+                step = lambda n, l, s="": (f'<div class="rp-flow-step"><div class="n">{n:,}</div><div class="l">{esc(l)}</div>'  # noqa: E731
+                                           + (f'<div class="s">{esc(s)}</div>' if s else "") + "</div>")
+                arrow = '<div class="rp-flow-arrow">→</div>'
+                st.html(
+                    C.section("The ripple effect", "traced through the knowledge graph")
+                    + '<div class="rp-flow">'
+                    + arrow.join([step(R["messages"], "messages"), step(R["disruptions"], "real disruptions"),
+                                  step(R["builds"], "car builds affected", f"{R['moved']} moved"),
+                                  step(R["orders"], "customer orders reached"),
+                                  step(R["dealers"], "dealers notified"),
+                                  step(R["customers"], "customers contacted")])
+                    + "</div>"
+                    + '<div class="rp-flow rp-flow-2">'
+                    + arrow.join([step(R["vehicles"], "vehicles checked for a faulty part"),
+                                  step(R["stopped"], "unsold cars pulled from sale")])
+                    + '<div class="rp-flow-gap"></div>'
+                    + step(R["loaners"], "loaner cars given", f"{R['missed']} eligible, none left")
+                    + "</div>")
+        with cr:
+            with st.container(key="card_checks"):
+                row = lambda l, v, ok=True: (f'<div class="rp-check"><span class="d{"" if ok else " bad"}"></span>'  # noqa: E731
+                                             f'<span class="l">{esc(l)}</span><span class="v">{esc(v)}</span></div>')
+                st.html(
+                    C.section("Checks and speed")
+                    + row("Language model and rule check agreed on the message type", f"{R['agree']} / {TOT['events']}",
+                          R["agree"] == TOT["events"])
+                    + row("Actions accepted by the company systems", f"{TOT['calls'] - TOT['failed']} / {TOT['calls']}",
+                          not TOT["failed"])
+                    + row("Unsafe changes stopped before sending", f"{R['blocked']}")
+                    + row("Matches the organizers' official log", f"{len(log)} / {len(calls)}" if SAME else "differs", SAME)
+                    + row("Average time to handle a message", f"{R['avg_s']:.1f} s")
+                    + row("Knowledge-graph links followed", f"{R['edges']:,}"))
+        with st.container(key="card_permsg"):
+            st.html(C.section("Actions taken for each message", "hover for details, click a bar to open the message"))
+            bars = []
+            for t in traces:
+                k = Counter(r["kind"] for r in t["execution"])
+                for kind, label in (("write", "Changes made"), ("read", "Look-ups"), ("escalation", "Sent to a person")):
+                    bars.append({"eid": t["event_id"], "num": int(t["event_id"].split("-")[1]), "kind": label,
+                                 "n": k.get(kind, 0), "total": len(t["execution"]), "about": message_about(t),
+                                 "source": t["source"]})
+            n = st.session_state.setdefault("pm_n", 0)
+            st.altair_chart(CH.actions_per_message(bars), on_select=open_from_chart, selection_mode=["pick"],
+                            key=f"permsg_{n}", theme=None, width="stretch")
 
 
 def feed_card(t, selected):

@@ -161,6 +161,18 @@ html, body, .stApp, .stApp *:not([data-testid="stIconMaterial"]) {{ font-family:
 .rp-steps-sub b {{ font-weight: 600; }}
 @media (max-width: 900px) {{ .rp-steps {{ grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 18px; }} }}
 
+/* incident spread chain: same step line as the front page, sized for names as well as counts */
+.rp-chain {{ display: flex; flex-wrap: nowrap; margin-top: 18px; }}
+.rp-chain .st {{ position: relative; flex: 1 1 0; min-width: 0; border-top: 2px solid var(--rule);
+  padding: 14px 14px 2px 0; }}
+.rp-chain .st.name {{ flex-grow: 1.7; }}
+.rp-chain .st::before {{ content: ""; position: absolute; top: -7px; left: 0; width: 12px; height: 12px;
+  border-radius: 50%; background: var(--primary); box-shadow: 0 0 0 3px var(--paper); }}
+.rp-chain .st:last-child {{ border-top-color: transparent; }}
+.rp-chain .l {{ font-size: 12.5px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }}
+.rp-chain .n {{ font-size: 17px; font-weight: 600; color: var(--primary); line-height: 1.3; margin-top: 3px; }}
+.rp-chain .st.count .n {{ font-size: 22px; font-variant-numeric: tabular-nums; }}
+
 /* ---------- facts grid */
 .rp-facts {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr)); gap: 10px; }}
 .rp-fact {{ background: var(--raised); border-radius: 8px; padding: 12px 14px; min-width: 0; box-sizing: border-box;

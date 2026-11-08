@@ -457,6 +457,40 @@ def tab_understanding(t):
             st.html('<div class="rp-stack">' + "".join(out) + "</div>")
 
 
+CHAIN_ORDER = ["Supplier", "Lot", "Shipment", "Part", "Plant", "Model", "ProductionOrder", "CustomerOrder",
+               "Vehicle", "Dealer", "Customer"]
+CHAIN_WORD = {"Supplier": ("supplier", "suppliers"), "Lot": ("parts batch", "parts batches"),
+              "Shipment": ("shipment", "shipments"), "Part": ("part", "parts"), "Plant": ("plant", "plants"),
+              "Model": ("car model", "car models"), "ProductionOrder": ("car build", "car builds"),
+              "CustomerOrder": ("customer order", "customer orders"), "Vehicle": ("finished car", "finished cars"),
+              "Dealer": ("dealer", "dealers"), "Customer": ("customer", "customers")}
+
+
+def spread_chain(edges):
+    """Compact version of the impact graph: one step per kind of thing, in the order the problem travels.
+    A single item is named; a group shows its count."""
+    groups = {}
+    for ed in edges:
+        for k in (ed["src"], ed["dst"]):
+            groups.setdefault(ntype(k), set()).add(nid(k))
+    steps = []
+    for t in CHAIN_ORDER:
+        ids = groups.get(t)
+        if not ids:
+            continue
+        one, many = CHAIN_WORD[t]
+        if len(ids) == 1:
+            value = L.plain(next(iter(ids)))
+            if t == "Plant":
+                value = value.removesuffix(" plant")
+            steps.append((one.capitalize(), value, "name"))
+        else:
+            steps.append((many.capitalize(), f"{len(ids):,}", "count"))
+    cells = "".join(f'<div class="st {kind}"><div class="l">{esc(lbl)}</div><div class="n">{esc(v)}</div></div>'
+                    for lbl, v, kind in steps)
+    return f'<div class="rp-chain">{cells}</div>'
+
+
 def tab_impact(t):
     moves_all = [p for p in t["plan"] if "production_order_id" in p]
     used = set()
@@ -477,26 +511,20 @@ def tab_impact(t):
                 edges = incident_edges(t, e)
                 pos = imp.get("affected_pos") or sorted({nid(x["dst"]) for x in edges if x["etype"] == "LOT_USED_IN_ORDER"})
                 kept = sorted({ntype(x) for ed in edges for x in (ed["src"], ed["dst"])})
-                reach = Counter(ntype(k) for k in {x for ed in edges for x in (ed["src"], ed["dst"])})
                 st.html(C.section("How the problem spreads", f"{len(edges):,} graph links traversed")
-                        + C.stats([(v, lbl, None) for lbl, v in (
-                            ("Car builds hit", reach.get("ProductionOrder", 0)),
-                            ("Customer orders", reach.get("CustomerOrder", 0)),
-                            ("Customers", reach.get("Customer", 0)),
-                            ("Dealers", reach.get("Dealer", 0)),
-                            ("Finished cars", reach.get("Vehicle", 0)),
-                            ("Car models", reach.get("Model", 0))) if v])
-                        + f'<div class="rp-note">{esc(L.graph_caption(kept))} Boxes with a count stand for a group, '
-                          'e.g. "10 customer orders". Pick one build below to see each order, dealer and customer '
-                          'behind it.</div>')
-                focus = st.selectbox("Focus on", ["All affected builds"] + pos, key=f"f{safe(iid)}",
-                                     format_func=lambda v: v if v == "All affected builds" else L.plain(v))
-                vstat = {v["vin"]: v.get("status") for v in imp.get("vehicles") or []}
-                st.html(legend(P, kept, derived=any(x.get("derived") for x in edges)))
-                st.graphviz_chart(dot_graph(P, edges, None if focus == "All affected builds" else focus, MEANINGS,
-                                            vstat), width="content")
-                with st.expander(f"Every connection in this picture, and the data file it comes from ({len(edges)})"):
-                    st.html('<div class="rp-note">Each line is one arrow in the picture above, written as a sentence. '
+                        + spread_chain(edges)
+                        + f'<div class="rp-note">{esc(L.graph_caption(kept))}</div>')
+                with st.expander("Show the full graph"):
+                    focus = st.selectbox("Focus on", ["All affected builds"] + pos, key=f"f{safe(iid)}",
+                                         format_func=lambda v: v if v == "All affected builds" else L.plain(v))
+                    vstat = {v["vin"]: v.get("status") for v in imp.get("vehicles") or []}
+                    st.html(legend(P, kept, derived=any(x.get("derived") for x in edges))
+                            + '<div class="rp-note">Boxes with a count stand for a group, e.g. "10 customer orders". '
+                              'Pick one build to see each order, dealer and customer behind it.</div>')
+                    st.graphviz_chart(dot_graph(P, edges, None if focus == "All affected builds" else focus, MEANINGS,
+                                                vstat), width="content")
+                with st.expander(f"Every connection in the graph, and the data file it comes from ({len(edges)})"):
+                    st.html('<div class="rp-note">Each line is one arrow in the full graph, written as a sentence. '
                             '"Worked out" means the data has no direct column for it: we inferred it from the plant, '
                             'the build dates and the parts list.</div>'
                             + C.table([("Connection", "wrap"), ("Link type", "small"), ("Source table", "nowrap"),

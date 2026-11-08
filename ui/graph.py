@@ -4,7 +4,6 @@ Same traversal and grouping as before; only the drawing changed. Edges carry no 
 top of a line: the edge type is in the hover tooltip and in the "Traversed edges" list under the graph. Node
 labels stay inside their boxes. Derived edges (lot to order) are dashed.
 """
-import html
 from collections import defaultdict
 
 from .theme import FONT_STACK
@@ -37,26 +36,30 @@ def _q(s):
 
 
 def _label(t, main, sub=None):
-    kind = html.escape(NICE.get(t, t).upper())
-    extra = f'<BR/><FONT POINT-SIZE="14">{html.escape(str(sub))}</FONT>' if sub else ""
-    return f'<<FONT POINT-SIZE="13">{kind}</FONT><BR/><B>{html.escape(str(main))}</B>{extra}>'
+    """Plain multi-line label: every line is drawn centered on the box (HTML-like labels drift off center
+    because Graphviz measures text with different font metrics than the browser)."""
+    lines = [NICE.get(t, t).upper(), str(main)] + ([str(sub)] if sub else [])
+    clean = [x.replace("\\", "/").replace('"', "'") for x in lines]
+    return '"' + "\\n".join(clean) + '"'
 
 
 def _header(P):
     font = FONT_STACK.split(",")[0].strip('"')
     return [
         "digraph G {",
-        f'graph [rankdir=LR, bgcolor="transparent", nodesep=0.18, ranksep=0.8, pad=0.25, fontname="{font}"];',
+        f'graph [rankdir=LR, bgcolor="transparent", nodesep=0.25, ranksep=0.55, pad=0.2, fontname="{font}"];',
         f'node [shape=box, style="rounded,filled", penwidth=1.8, margin="0.2,0.09", fontname="{font}", '
-        f'fontsize=16, fontcolor="{P["ink"]}"];',
+        f'fontsize=15, fontcolor="{P["ink"]}"];',
         f'edge [color="{P["edge"]}", penwidth=1.4, arrowsize=0.75];',
     ]
 
 
-def _node(P, key, t, label):
+def _node(P, key, t, label, tall=False):
+    """Every box has the same fixed size so labels and numbers sit centered in a tidy grid."""
     color = P["nodes"].get(t, P["muted"])
-    fill = P["raised"] if P["name"] == "mission" else P["paper"]
-    return f'{_q(key)} [label={label}, color="{color}", fillcolor="{fill}", tooltip={_q(NICE.get(t, t))}];'
+    size = f'width=2.2, height={0.95 if tall else 0.7}, fixedsize=true'
+    return (f'{_q(key)} [label={label}, color="{color}", fillcolor="{P["paper"]}", {size}, '
+            f'tooltip={_q(NICE.get(t, t))}];')
 
 
 def dot_graph(P, edges, focus_po=None, meanings=None, vehicle_status=None):
@@ -90,6 +93,7 @@ def dot_graph(P, edges, focus_po=None, meanings=None, vehicle_status=None):
             tip = e["etype"].lower().replace("_", " ") + (": " + meanings[e["etype"]] if e["etype"] in meanings else "")
             style = f', style=dashed, color="{P["nodes"]["Lot"]}", penwidth=1.8' if e.get("derived") else ""
             lines.append(f"{_q(s)} -> {_q(d)} [tooltip={_q(tip)}{style}];")
+    tall = False
     for (parent, t), members in groups.items():
         g = f"{t}@{parent}"
         word = NICE.get(t, t).lower() + ("s" if len(members) != 1 else "")
@@ -100,8 +104,9 @@ def dot_graph(P, edges, focus_po=None, meanings=None, vehicle_status=None):
         elif len(members) <= 3:
             sub = ", ".join(sorted(nid(m) for m in members))
         nodes[g] = (t, _label(t, f"{len(members)} {word}", sub))
+        tall = tall or bool(sub)
         lines.append(f"{_q(parent)} -> {_q(g)} [tooltip={_q('grouped ' + word)}];")
-    out = _header(P) + [_node(P, n, t, lab) for n, (t, lab) in nodes.items()]
+    out = _header(P) + [_node(P, n, t, lab, tall) for n, (t, lab) in nodes.items()]
     return "\n".join(out + lines + ["}"])
 
 
@@ -123,5 +128,5 @@ def legend(P, types, derived=False):
     items = "".join(f'<span><i style="background:{P["nodes"].get(t, P["muted"])}"></i>{NICE.get(t, t)}</span>'
                     for t in types)
     if derived:
-        items += '<span><i class="dash"></i>derived (same plant + build window + BOM)</span>'
+        items += '<span><i class="dash"></i>derived link</span>'
     return f'<div class="rp-legend">{items}</div>'

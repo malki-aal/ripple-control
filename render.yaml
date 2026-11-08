@@ -1,0 +1,20 @@
+# Render Blueprint: public Ripple Control site (Streamlit).
+# Render dashboard -> New -> Blueprint -> pick this repo. No secrets are needed:
+# the site reads the recorded run in submission/ and never calls the organizer server.
+services:
+  - type: web
+    name: ripple-control
+    runtime: python
+    plan: free
+    branch: main
+    buildCommand: pip install -r requirements.txt
+    startCommand: >-
+      streamlit run app.py
+      --server.port $PORT
+      --server.address 0.0.0.0
+      --server.headless true
+      -- --run submission --events data/events.json
+    healthCheckPath: /_stcore/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.6

@@ -293,7 +293,6 @@ def overview():
                        (TOT["escalated"], "escalated to a human", "warn" if TOT["escalated"] else "ok"),
                        (TOT["noise"], "noise, 0 calls", None)], hero=True)
             + f'<div class="rp-row" style="gap:18px">{chips}</div>'
-            + C.facts([("Run", esc(manifest.get("run_id"))), ("Extractor", esc(manifest.get("extractor")))])
             + "</div>")
 
 
